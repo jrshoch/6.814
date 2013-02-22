@@ -1,0 +1,139 @@
+Jason Hoch
+6.814 PS1
+2/19/2013
+Collaborator: Brodrick Childs
+
+Question 1
+SELECT avg(dod - dob)
+FROM d_patients;
+
+Question 2
+SELECT counts.itemid,
+       label,
+       total
+FROM (
+    SELECT itemid,
+           COUNT(*) AS total
+    FROM chartevents
+    GROUP BY itemid
+) counts JOIN d_chartitems ON counts.itemid = d_chartitems.itemid
+ORDER BY total DESC
+LIMIT 20;
+
+Question 3
+SELECT d_labitems.*
+FROM d_labitems,
+     labevents JOIN d_patients ON labevents.subject_id = d_patients.subject_id
+WHERE d_labitems.itemid = labevents.itemid
+AND ...;
+
+Question 4
+SELECT total, COUNT(*) AS histogram
+FROM (
+    SELECT subject_id,
+           COUNT(*) AS total
+    FROM chartevents
+    GROUP BY subject_id
+)
+GROUP BY total
+ORDER BY total;
+
+Question 5
+SELECT DISTINCT subject_id
+FROM labevents
+WHERE subject_id NOT IN (
+    SELECT subject_id
+    FROM medevents JOIN d_meditems ON medevents.subject_id = d_meditems.itemid
+    WHERE label LIKE '%digoxin%'
+);
+
+Question 6
+SELECT DISTINCT dur1.subject_id
+FROM a_meddurations as dur1, a_meddurations as dur2
+WHERE dur1.starttime < dur2.endtime AND
+      dur1.endtime > dur2.starttime AND
+      dur1.subject_id = dur2.subject_id AND
+      dur1.startrealtime != dur2.startrealtime;
+
+Question 7
+CREATE TEMP TABLE cgh_victims AS
+    SELECT DISTINCT d_patients.subject_id
+    FROM d_patients JOIN chartevents ON d_patients.subject_id = chartevents.subject_id
+                    JOIN d_chartitems ON chartevents.itemid = d_chartitems.itemid
+    WHERE hospital_expire_flg = 'Y' AND
+          value1 LIKE '%congestive heart failure%' AND
+          label LIKE '%Diagnosis%';
+SELECT value1, COUNT(*) as occurrences
+FROM chartevents JOIN d_chartitems ON chartevents.itemid = d_chartitems.itemid
+WHERE subject_id IN (SELECT subject_id FROM cgh_victims) AND 
+      label LIKE '%diagnosis%' AND
+      value1 != 'CONGESTIVE HEART FAILURE'
+GROUP BY value1
+ORDER BY occurrences DESC;
+
+Question 8
+CREATE TEMP TABLE stays AS
+    SELECT STRFTIME('%Y', intime) AS year,
+           subject_id,
+           COUNT(icustay_id) AS stays
+    FROM icustayevents
+    GROUP BY STRFTIME('%Y', intime),
+             subject_id
+    ORDER BY STRFTIME('%Y', intime);
+CREATE TEMP TABLE sickest AS
+    SELECT s1.year,
+           s1.subject_id,
+           s1.stays
+    FROM stays AS s1
+    WHERE s1.stays = (
+        SELECT MAX(s2.stays)
+        FROM stays AS s2
+        WHERE s1.year = s2.year
+    );
+SELECT *
+FROM sickest
+WHERE subject_id = (
+    SELECT subject_id
+    FROM (
+        SELECT subject_id,
+               COUNT(year) AS total
+        FROM sickest
+        GROUP BY subject_id
+        ORDER BY total DESC
+        limit 1
+    )
+);
+
+Question 9
+CREATE TEMP TABLE dopamine_events AS
+    SELECT me1.subject_id,
+           i1.label,
+           me1.realtime
+    FROM medevents AS me1,
+         d_meditems AS i1
+    WHERE me1.itemid = i1.itemid AND
+          i1.label LIKE '%dopamine%';
+CREATE TEMP TABLE lidocaine_events AS
+    SELECT me1.subject_id,
+           i1.label,
+           me1.realtime
+    FROM medevents AS me1,
+         d_meditems AS i1
+    WHERE me1.itemid = i1.itemid AND
+          i1.label LIKE '%lidocaine%';
+CREATE TEMP TABLE dopamine_and_lidocaine_patient_days AS
+    SELECT DISTINCT d.subject_id,
+                    DATE(d.realtime) AS day
+    FROM dopamine_events AS d,
+         lidocaine_events AS l
+    WHERE DATE(d.realtime) = DATE(l.realtime) AND
+          d.subject_id = l.subject_id;
+CREATE TEMP TABLE totals AS
+    SELECT subject_id,
+           COUNT(day) AS total_days
+    FROM dopamine_and_lidocaine_patient_days
+    GROUP BY subject_id;
+SELECT totals.subject_id,
+       day
+FROM dopamine_and_lidocaine_patient_days JOIN totals ON dopamine_and_lidocaine_patient_days.subject_id = totals.subject_id
+WHERE total_days > 1;
