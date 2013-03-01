@@ -23,6 +23,7 @@ public class Predicate implements Serializable {
       return values()[i];
     }
 
+    @Override
     public String toString() {
       if (this == EQUALS)
         return "=";
@@ -95,6 +96,7 @@ public class Predicate implements Serializable {
    * Returns something useful, like "f = field_id op = op_string operand =
    * operand_string
    */
+  @Override
   public String toString() {
     // some code goes here
     return "";

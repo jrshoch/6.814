@@ -31,27 +31,33 @@ public class TupleIterator implements DbIterator {
     }
   }
 
+  @Override
   public void open() {
     i = tuples.iterator();
   }
 
+  @Override
   public boolean hasNext() {
     return i.hasNext();
   }
 
+  @Override
   public Tuple next() {
     return i.next();
   }
 
+  @Override
   public void rewind() {
     close();
     open();
   }
 
+  @Override
   public TupleDesc getTupleDesc() {
     return td;
   }
 
+  @Override
   public void close() {
     i = null;
   }

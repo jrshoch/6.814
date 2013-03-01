@@ -21,10 +21,12 @@ public class TransactionId implements Serializable {
     return myid;
   }
 
+  @Override
   public boolean equals(Object tid) {
     return ((TransactionId) tid).myid == myid;
   }
 
+  @Override
   public int hashCode() {
     return (int) myid;
   }

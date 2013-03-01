@@ -21,6 +21,7 @@ public interface PageId {
    *         key in a hash table in the BufferPool, for example.)
    * @see BufferPool
    */
+  @Override
   public int hashCode();
 
   /**
@@ -30,6 +31,7 @@ public interface PageId {
    * @return true if the objects are equal (e.g., page numbers and table ids are
    *         the same)
    */
+  @Override
   public boolean equals(Object o);
 
   public int pageNumber();

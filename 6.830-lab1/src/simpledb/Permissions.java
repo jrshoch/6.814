@@ -12,6 +12,7 @@ public class Permissions {
     this.permLevel = permLevel;
   }
 
+  @Override
   public String toString() {
     if (permLevel == 0)
       return "READ_ONLY";

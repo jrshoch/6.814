@@ -31,6 +31,7 @@ public class TupleDesc implements Serializable {
       this.fieldType = t;
     }
 
+    @Override
     public String toString() {
       return fieldName + "(" + fieldType + ")";
     }
@@ -146,11 +147,13 @@ public class TupleDesc implements Serializable {
    * @param o the Object to be compared for equality with this TupleDesc.
    * @return true if the object is equal to this TupleDesc.
    */
+  @Override
   public boolean equals(Object o) {
     // some code goes here
     return false;
   }
 
+  @Override
   public int hashCode() {
     // If you want to use TupleDesc as keys for HashMap, implement this so
     // that equal objects have equals hashCode() results
@@ -164,6 +167,7 @@ public class TupleDesc implements Serializable {
    * 
    * @return String describing this descriptor.
    */
+  @Override
   public String toString() {
     // some code goes here
     return "";

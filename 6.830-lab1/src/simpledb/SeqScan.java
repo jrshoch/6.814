@@ -63,6 +63,7 @@ public class SeqScan implements DbIterator {
     this(tid, tableid, Database.getCatalog().getTableName(tableid));
   }
 
+  @Override
   public void open() throws DbException, TransactionAbortedException {
     // some code goes here
   }
@@ -76,25 +77,30 @@ public class SeqScan implements DbIterator {
    * @return the TupleDesc with field names from the underlying HeapFile,
    *         prefixed with the tableAlias string from the constructor.
    */
+  @Override
   public TupleDesc getTupleDesc() {
     // some code goes here
     return null;
   }
 
+  @Override
   public boolean hasNext() throws TransactionAbortedException, DbException {
     // some code goes here
     return false;
   }
 
+  @Override
   public Tuple next() throws NoSuchElementException, TransactionAbortedException, DbException {
     // some code goes here
     return null;
   }
 
+  @Override
   public void close() {
     // some code goes here
   }
 
+  @Override
   public void rewind() throws DbException, NoSuchElementException, TransactionAbortedException {
     // some code goes here
   }

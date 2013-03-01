@@ -37,9 +37,12 @@ public interface Field extends Serializable {
    * Hash code. Different Field objects representing the same value should
    * probably return the same hashCode.
    */
+  @Override
   public int hashCode();
 
+  @Override
   public boolean equals(Object field);
 
+  @Override
   public String toString();
 }

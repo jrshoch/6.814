@@ -32,14 +32,17 @@ public class StringField implements Field {
       value = s;
   }
 
+  @Override
   public String toString() {
     return value;
   }
 
+  @Override
   public int hashCode() {
     return value.hashCode();
   }
 
+  @Override
   public boolean equals(Object field) {
     return ((StringField) field).value.equals(value);
   }
@@ -51,6 +54,7 @@ public class StringField implements Field {
    * 
    * @param dos Where the string is written
    */
+  @Override
   public void serialize(DataOutputStream dos) throws IOException {
     String s = value;
     int overflow = maxSize - s.length();
@@ -71,6 +75,7 @@ public class StringField implements Field {
    * @throws IllegalCastException if val is not a StringField
    * @see Field#compare
    */
+  @Override
   public boolean compare(Predicate.Op op, Field val) {
 
     StringField iVal = (StringField) val;
@@ -105,6 +110,7 @@ public class StringField implements Field {
   /**
    * @return the Type for this Field
    */
+  @Override
   public Type getType() {
 
     return Type.STRING_TYPE;

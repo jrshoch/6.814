@@ -98,6 +98,7 @@ public class HeapPage implements Page {
   /**
    * Return a view of this page before it was modified -- used by recovery
    */
+  @Override
   public HeapPage getBeforeImage() {
     try {
       byte[] oldDataRef = null;
@@ -113,6 +114,7 @@ public class HeapPage implements Page {
     return null;
   }
 
+  @Override
   public void setBeforeImage() {
     synchronized (oldDataLock) {
       oldData = getPageData().clone();
@@ -122,6 +124,7 @@ public class HeapPage implements Page {
   /**
    * @return the PageId associated with this page.
    */
+  @Override
   public HeapPageId getId() {
     // some code goes here
     throw new UnsupportedOperationException("implement this");
@@ -172,6 +175,7 @@ public class HeapPage implements Page {
    * @see #HeapPage
    * @return A byte array correspond to the bytes of this page.
    */
+  @Override
   public byte[] getPageData() {
     int len = BufferPool.getPageSize();
     ByteArrayOutputStream baos = new ByteArrayOutputStream(len);
@@ -279,6 +283,7 @@ public class HeapPage implements Page {
    * Marks this page as dirty/not dirty and record that transaction that did the
    * dirtying
    */
+  @Override
   public void markDirty(boolean dirty, TransactionId tid) {
     // some code goes here
     // not necessary for lab1
@@ -288,6 +293,7 @@ public class HeapPage implements Page {
    * Returns the tid of the transaction that last dirtied this page, or null if
    * the page is not dirty
    */
+  @Override
   public TransactionId isDirty() {
     // some code goes here
     // Not necessary for lab1

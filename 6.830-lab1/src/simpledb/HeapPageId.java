@@ -15,6 +15,7 @@ public class HeapPageId implements PageId {
   }
 
   /** @return the table associated with this PageId */
+  @Override
   public int getTableId() {
     // some code goes here
     return 0;
@@ -24,6 +25,7 @@ public class HeapPageId implements PageId {
    * @return the page number in the table getTableId() associated with this
    *         PageId
    */
+  @Override
   public int pageNumber() {
     // some code goes here
     return 0;
@@ -35,6 +37,7 @@ public class HeapPageId implements PageId {
    *         key in a hash table in the BufferPool, for example.)
    * @see BufferPool
    */
+  @Override
   public int hashCode() {
     // some code goes here
     throw new UnsupportedOperationException("implement this");
@@ -47,6 +50,7 @@ public class HeapPageId implements PageId {
    * @return true if the objects are equal (e.g., page numbers and table ids are
    *         the same)
    */
+  @Override
   public boolean equals(Object o) {
     // some code goes here
     return false;
@@ -57,6 +61,7 @@ public class HeapPageId implements PageId {
    * to disk. Size of returned array must contain number of integers that
    * corresponds to number of args to one of the constructors.
    */
+  @Override
   public int[] serialize() {
     int data[] = new int[2];
 
