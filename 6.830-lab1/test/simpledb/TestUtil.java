@@ -1,9 +1,14 @@
 package simpledb;
 
-import java.io.*;
-import java.util.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-import static org.junit.Assert.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.NoSuchElementException;
 
 public class TestUtil {
     /**
@@ -71,7 +76,7 @@ public class TestUtil {
                 if (t instanceof String)
                     f = new StringField((String)t, Type.STRING_LEN); 
                 else
-                    f = new IntField((Integer)t);
+                    f = new IntField(((Integer)t).intValue());
 
                 tup.setField(j, f);
             }
@@ -202,6 +207,7 @@ public class TestUtil {
             this.td = td;
         }
 
+        @Override
         public Page readPage(PageId id) throws NoSuchElementException {
             throw new RuntimeException("not implemented");
         }
@@ -210,15 +216,18 @@ public class TestUtil {
             throw new RuntimeException("not implemented");
         }
 
+        @Override
         public void writePage(Page p) throws IOException {
             throw new RuntimeException("not implemented");
         }
 
+        @Override
         public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
             throw new RuntimeException("not implemented");
         }
 
+        @Override
         public Page deleteTuple(TransactionId tid, Tuple t)
             throws DbException, TransactionAbortedException {
             throw new RuntimeException("not implemented");
@@ -228,15 +237,18 @@ public class TestUtil {
             throw new RuntimeException("not implemented");
         }
 
+        @Override
         public int getId() {
             return tableid;
         }
 
+        @Override
         public DbFileIterator iterator(TransactionId tid) {
             throw new RuntimeException("not implemented");
         }
 
-		public TupleDesc getTupleDesc() {			
+		@Override
+    public TupleDesc getTupleDesc() {			
 			return td;
 		}
     }
@@ -245,6 +257,8 @@ public class TestUtil {
      * Mock SeqScan class for unit testing.
      */
     public static class MockScan implements DbIterator {
+      private static final long serialVersionUID = 1L;
+      
         private int cur, low, high, width;
 
         /**
@@ -259,16 +273,22 @@ public class TestUtil {
             this.cur = low;
         }
 
+        @Override
         public void open() {
+          return;
         }
 
+        @Override
         public void close() {
+          return;
         }
 
+        @Override
         public void rewind() {
             cur = low;
         }
 
+        @Override
         public TupleDesc getTupleDesc() {
             return Utility.getTupleDesc(width);
         }
@@ -283,12 +303,14 @@ public class TestUtil {
             return tup;
         }
 
-		public boolean hasNext() throws DbException, TransactionAbortedException {
+		@Override
+    public boolean hasNext() throws DbException, TransactionAbortedException {
 			if (cur >= high) return false;
 			return true;
 		}
 
-		public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+		@Override
+    public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
 			if(cur >= high) throw new NoSuchElementException();
             Tuple tup = new Tuple(getTupleDesc());
             for (int i = 0; i < width; ++i)
@@ -330,6 +352,7 @@ public class TestUtil {
             this.elock = new Object();
         }
 
+        @Override
         public void run() {
             try {
                 Database.getBufferPool().getPage(tid, pid, perm);

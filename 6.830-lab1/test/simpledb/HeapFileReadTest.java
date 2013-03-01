@@ -1,15 +1,21 @@
 package simpledb;
 
-import simpledb.systemtest.SimpleDbTestBase;
-import simpledb.systemtest.SystemTestUtil;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import java.util.*;
+import java.util.NoSuchElementException;
+
+import junit.framework.JUnit4TestAdapter;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-import junit.framework.JUnit4TestAdapter;
+import simpledb.systemtest.SimpleDbTestBase;
+import simpledb.systemtest.SystemTestUtil;
 
 public class HeapFileReadTest extends SimpleDbTestBase {
     private HeapFile hf;
@@ -19,6 +25,7 @@ public class HeapFileReadTest extends SimpleDbTestBase {
     /**
      * Set up initial resources for each unit test.
      */
+    @Override
     @Before
     public void setUp() throws Exception {
         hf = SystemTestUtil.createRandomHeapFile(2, 20, null, null);
@@ -89,6 +96,7 @@ public class HeapFileReadTest extends SimpleDbTestBase {
             it.next();
             fail("expected exception");
         } catch (NoSuchElementException e) {
+          // Exception expected but no action necessary.
         }
 
         it.open();
@@ -116,6 +124,7 @@ public class HeapFileReadTest extends SimpleDbTestBase {
             it.next();
             fail("expected exception");
         } catch (NoSuchElementException e) {
+          // Exception expected but no action necessary.
         }
         // close twice is harmless
         it.close();

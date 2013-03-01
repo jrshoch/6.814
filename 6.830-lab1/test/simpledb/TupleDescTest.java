@@ -1,14 +1,17 @@
 package simpledb;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.NoSuchElementException;
+
+import junit.framework.Assert;
+import junit.framework.JUnit4TestAdapter;
 
 import org.junit.Test;
 
 import simpledb.systemtest.SimpleDbTestBase;
-
-import static org.junit.Assert.*;
-import junit.framework.Assert;
-import junit.framework.JUnit4TestAdapter;
 
 public class TupleDescTest extends SimpleDbTestBase {
 
@@ -27,7 +30,7 @@ public class TupleDescTest extends SimpleDbTestBase {
         assertEquals(3 * Type.INT_TYPE.getLen(), td3.getSize());
         for (int i = 0; i < 3; ++i)
             assertEquals(Type.INT_TYPE, td3.getFieldType(i));
-        assertEquals(combinedStringArrays(td1, td2, td3), true);
+        assertEquals(new Boolean(combinedStringArrays(td1, td2, td3)), Boolean.TRUE);
 
         // test td2.combine(td1)
         td3 = TupleDesc.merge(td2, td1);
@@ -35,7 +38,7 @@ public class TupleDescTest extends SimpleDbTestBase {
         assertEquals(3 * Type.INT_TYPE.getLen(), td3.getSize());
         for (int i = 0; i < 3; ++i)
             assertEquals(Type.INT_TYPE, td3.getFieldType(i));
-        assertEquals(combinedStringArrays(td2, td1, td3), true);
+        assertEquals(new Boolean(combinedStringArrays(td2, td1, td3)), Boolean.TRUE);
 
         // test td2.combine(td2)
         td3 = TupleDesc.merge(td2, td2);
@@ -43,7 +46,7 @@ public class TupleDescTest extends SimpleDbTestBase {
         assertEquals(4 * Type.INT_TYPE.getLen(), td3.getSize());
         for (int i = 0; i < 4; ++i)
             assertEquals(Type.INT_TYPE, td3.getFieldType(i));
-        assertEquals(combinedStringArrays(td2, td2, td3), true);
+        assertEquals(new Boolean(combinedStringArrays(td2, td2, td3)), Boolean.TRUE);
     }
 
     /**
