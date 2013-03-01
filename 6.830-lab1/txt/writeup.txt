@@ -1,0 +1,39 @@
+Lab 1 Writeup
+Jason Hoch
+2/28/2013
+
+Describe any design decisions you made
+
+There weren't many design decisions to make in this lab.  I did in some places
+in the code either cache computations or pre-compute them.  For example, name-
+to-index calculations in TupleDesc and Catalog are lazily stored in a
+java.util.Map, and in the HeapFileIterator (the HeapFile implementation of
+DbFileIterator) the next() method, after returning a Tuple, calculates the
+next Tuple.
+
+Discuss and justify any changes you made to the API
+
+The only change I made to the API was adding a "throws IOException" to the
+readPage method in DbFile, and the necessary upwards and downwards propagations
+of this throws clause.  People pointed out on Piazza that this exception would
+inevitably come up when trying to read in the byte array of a PageId to make
+a HeapPage, and the response said that we should throw a RuntimeException -
+however, this is surely a sign that IOException should just be thrown, as it
+is in writePage.
+
+Describe any missing or incomplete elements of your code
+
+As far as I can tell, only the parts that say "not necessary for lab1!
+
+Descibe how long you spent on the lab, and whether there was anything you
+found particularly difficult or confusing.
+
+All in all I would say I spent around 5-6 hours on the lab.  Implementing
+BufferPool and HeapPage and HeapFile, particularly BufferPool, was very
+confusing.  It was unclear which readPage methods should be using which other
+ones, and who should be directly accessing disk, and how.  The control flow
+hopefully could be simplified, or if not some of the hints given on Piazza
+could be included with the lab hand-out; I know I personally ended up
+juggling 2-4 Piazza responses in implementing BufferPool correctly.  Other
+than that, any confusion that came up during the lab was covered very
+thoroughly by the lab hand-out and/or the Javadocs.  Great lab!

@@ -105,7 +105,8 @@ public class TupleDesc {
       return nameToIdMap.get(name).intValue();
     }
     for (int i = 0; i < numFields(); i++) {
-      if (fieldArray[i] == name) {
+      String field = fieldArray[i];
+      if (field != null && field.equals(name)) {
         nameToIdMap.put(name, new Integer(i));
         return i;
       }
@@ -146,17 +147,18 @@ public class TupleDesc {
    */
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof TupleDesc)) {
+    if (this == o)
+      return true;
+    if (o == null)
       return false;
-    }
+    if (getClass() != o.getClass())
+      return false;
     TupleDesc otherTuple = (TupleDesc) o;
-    if (numFields() != otherTuple.numFields()) {
+    if (numFields() != otherTuple.numFields())
       return false;
-    }
     for (int i = 0; i < numFields(); i++) {
-      if (getType(i) != otherTuple.getType(i)) {
+      if (!getType(i).equals(otherTuple.getType(i)))
         return false;
-      }
     }
     return true;
   }

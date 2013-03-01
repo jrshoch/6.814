@@ -19,6 +19,7 @@ public class Tuple {
    */
   public Tuple(TupleDesc td) {
     this.tupleDesc = td;
+    this.fieldArray = new Field[td.numFields()];
   }
 
   /**
@@ -33,8 +34,7 @@ public class Tuple {
    *         be null.
    */
   public RecordId getRecordId() {
-    // some code goes here
-    return null;
+    return recordId;
   }
 
   /**
@@ -43,7 +43,7 @@ public class Tuple {
    * @param rid the new RecordId for this tuple.
    */
   public void setRecordId(RecordId rid) {
-    // some code goes here
+    recordId = rid;
   }
 
   /**
@@ -53,7 +53,7 @@ public class Tuple {
    * @param f new value for the field.
    */
   public void setField(int i, Field f) {
-    // some code goes here
+    fieldArray[i] = f;
   }
 
   /**
@@ -62,8 +62,7 @@ public class Tuple {
    * @param i field index to return. Must be a valid index.
    */
   public Field getField(int i) {
-    // some code goes here
-    return null;
+    return fieldArray[i];
   }
 
   /**
@@ -74,8 +73,13 @@ public class Tuple {
    * 
    * where \t is any whitespace, except newline, and \n is a newline
    */
+  @Override
   public String toString() {
-    // some code goes here
-    throw new UnsupportedOperationException("Implement this");
+    String string = "";
+    for (int i = 0; i < fieldArray.length - 1; i++) {
+      string += fieldArray[i].toString() + "\t";
+    }
+    string += fieldArray[fieldArray.length - 1].toString() + "\n";
+    return string;
   }
 }
