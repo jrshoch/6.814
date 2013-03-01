@@ -1,7 +1,8 @@
 package simpledb.systemtest;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import simpledb.systemtest.SystemTestUtil;
+
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,18 +12,7 @@ import java.util.Random;
 
 import org.junit.Test;
 
-import simpledb.BufferPool;
-import simpledb.Database;
-import simpledb.DbException;
-import simpledb.HeapFile;
-import simpledb.Page;
-import simpledb.PageId;
-import simpledb.SeqScan;
-import simpledb.TransactionAbortedException;
-import simpledb.TransactionId;
-import simpledb.Tuple;
-import simpledb.TupleDesc;
-import simpledb.Utility;
+import simpledb.*;
 
 /**
  * Dumps the contents of a table.
@@ -88,7 +78,7 @@ public class ScanTest extends SimpleDbTestBase {
             }
 
             @Override
-            public Page readPage(PageId pid) throws NoSuchElementException, IOException {
+            public Page readPage(PageId pid) throws NoSuchElementException {
                 readCount += 1;
                 return super.readPage(pid);
             }

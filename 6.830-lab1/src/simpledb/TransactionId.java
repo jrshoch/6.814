@@ -1,29 +1,31 @@
 package simpledb;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * TransactionId is a class that contains the identifier of a transaction.
  */
-public class TransactionId {
-  static AtomicLong counter = new AtomicLong(0);
-  long myid;
+public class TransactionId implements Serializable {
 
-  public TransactionId() {
-    myid = counter.getAndIncrement();
-  }
+    private static final long serialVersionUID = 1L;
 
-  public long getId() {
-    return myid;
-  }
+    static AtomicLong counter = new AtomicLong(0);
+    final long myid;
 
-  @Override
-  public boolean equals(Object tid) {
-    return ((TransactionId) tid).myid == myid;
-  }
+    public TransactionId() {
+        myid = counter.getAndIncrement();
+    }
 
-  @Override
-  public int hashCode() {
-    return (int) myid;
-  }
+    public long getId() {
+        return myid;
+    }
+
+    public boolean equals(Object tid) {
+        return ((TransactionId) tid).myid == myid;
+    }
+
+    public int hashCode() {
+        return (int) myid;
+    }
 }
