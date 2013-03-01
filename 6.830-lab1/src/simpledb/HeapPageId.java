@@ -2,7 +2,12 @@ package simpledb;
 
 /** Unique identifier for HeapPage objects. */
 public class HeapPageId implements PageId {
+  
+  private static final int MAX_PAGES_PER_TABLE = 1048573; // Prime near 2 ** 20
 
+  private final int tableId;
+  private final int pageNumber;
+  
   /**
    * Constructor. Create a page id structure for a specific page of a specific
    * table.
@@ -11,14 +16,14 @@ public class HeapPageId implements PageId {
    * @param pgNo The page number in that table.
    */
   public HeapPageId(int tableId, int pgNo) {
-    // some code goes here
+    this.tableId = tableId;
+    this.pageNumber = pgNo;
   }
 
   /** @return the table associated with this PageId */
   @Override
   public int getTableId() {
-    // some code goes here
-    return 0;
+    return tableId;
   }
 
   /**
@@ -27,8 +32,7 @@ public class HeapPageId implements PageId {
    */
   @Override
   public int pageNumber() {
-    // some code goes here
-    return 0;
+    return pageNumber;
   }
 
   /**
@@ -39,8 +43,7 @@ public class HeapPageId implements PageId {
    */
   @Override
   public int hashCode() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+    return tableId * MAX_PAGES_PER_TABLE + pageNumber + 31;
   }
 
   /**
@@ -52,8 +55,18 @@ public class HeapPageId implements PageId {
    */
   @Override
   public boolean equals(Object o) {
-    // some code goes here
-    return false;
+    if (this == o)
+      return true;
+    if (o == null)
+      return false;
+    if (getClass() != o.getClass())
+      return false;
+    HeapPageId otherHeapPageId = (HeapPageId) o;
+    if (otherHeapPageId.pageNumber != this.pageNumber)
+      return false;
+    if (otherHeapPageId.tableId != this.tableId)
+      return false;
+    return true;
   }
 
   /**

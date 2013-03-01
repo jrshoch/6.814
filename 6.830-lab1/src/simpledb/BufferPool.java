@@ -1,6 +1,9 @@
 package simpledb;
 
 import java.io.IOException;
+import java.util.Map;
+
+import com.google.common.collect.Maps;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from disk.
@@ -23,6 +26,11 @@ public class BufferPool {
    * instead.
    */
   public static final int DEFAULT_PAGES = 50;
+  
+  private final int maxPages;
+  private int currentPages;
+  
+  private final Map<PageId, Page> pageIdToPages;
 
   /**
    * Creates a BufferPool that caches up to numPages pages.
@@ -30,7 +38,8 @@ public class BufferPool {
    * @param numPages maximum number of pages in this buffer pool.
    */
   public BufferPool(int numPages) {
-    // some code goes here
+    this.maxPages = numPages;
+    this.pageIdToPages = Maps.newHashMap();
   }
 
   public static int getPageSize() {
@@ -52,9 +61,20 @@ public class BufferPool {
    * @param perm the requested permissions on the page
    */
   public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-      throws TransactionAbortedException, DbException {
-    // some code goes here
-    return null;
+      throws TransactionAbortedException, DbException, IOException {
+    if (pageIdToPages.containsKey(pid)) {
+      return pageIdToPages.get(pid);
+    }
+    if (currentPages == maxPages) {
+      throw new DbException("BufferPool hit page limit while retrieving page id: " + pid);
+    }
+    int tableId = pid.getTableId();
+    Catalog catalog = Database.getCatalog();
+    DbFile dbFile = catalog.getDatabaseFile(tableId);
+    Page page = dbFile.readPage(pid);
+    pageIdToPages.put(pid, page);
+    currentPages++;
+    return page;
   }
 
   /**

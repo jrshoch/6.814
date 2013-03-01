@@ -11,6 +11,12 @@ public class SeqScan implements DbIterator {
 
   private static final long serialVersionUID = 1L;
 
+  private final TransactionId transactionId;
+  private TupleDesc tupleDesc;
+  private DbFileIterator iterator;
+  private int tableId;
+  private String tableAlias;
+
   /**
    * Creates a sequential scan over the specified table as a part of the
    * specified transaction.
@@ -24,8 +30,28 @@ public class SeqScan implements DbIterator {
    *          shouldn't crash if they are, but the resulting name can be
    *          null.fieldName, tableAlias.null, or null.null).
    */
-  public SeqScan(TransactionId tid, int tableid, String tableAlias) {
-    // some code goes here
+  public SeqScan(TransactionId tid, int tableId, String tableAlias) {
+    this.transactionId = tid;
+    reset(tableId, tableAlias);
+  }
+  
+  private static TupleDesc getPrefixedTupleDesc(int tableId, String tableAlias) {
+    String tableAliasRepresentation = representPossiblyNullString(tableAlias);
+    TupleDesc underlyingTupleDesc = Database.getCatalog().getTupleDesc(tableId);
+    int tupleDescSize = underlyingTupleDesc.numFields();
+    Type[] newTypes = new Type[tupleDescSize];
+    String[] newFieldNames = new String[tupleDescSize];
+    for (int i = 0; i < tupleDescSize; i++) {
+      Type type = underlyingTupleDesc.getFieldType(i);
+      String fieldName = underlyingTupleDesc.getFieldName(i);
+      newTypes[i] = type;
+      newFieldNames[i] = tableAliasRepresentation + "." + representPossiblyNullString(fieldName);
+    }
+    return new TupleDesc(newTypes, newFieldNames);
+  }
+
+  private static String representPossiblyNullString(String string) {
+    return (string == null) ? "null" : string;
   }
 
   /**
@@ -33,30 +59,32 @@ public class SeqScan implements DbIterator {
    *         be the actual name of the table in the catalog of the database
    * */
   public String getTableName() {
-    return null;
+    return Database.getCatalog().getTableName(tableId);
   }
 
   /**
    * @return Return the alias of the table this operator scans.
    * */
   public String getAlias() {
-    // some code goes here
-    return null;
+    return tableAlias;
   }
 
   /**
    * Reset the tableid, and tableAlias of this operator.
    * 
-   * @param tableid the table to scan.
-   * @param tableAlias the alias of this table (needed by the parser); the
+   * @param tid the table to scan.
+   * @param alias the alias of this table (needed by the parser); the
    *          returned tupleDesc should have fields with name
    *          tableAlias.fieldName (note: this class is not responsible for
    *          handling a case where tableAlias or fieldName are null. It
    *          shouldn't crash if they are, but the resulting name can be
    *          null.fieldName, tableAlias.null, or null.null).
    */
-  public void reset(int tableid, String tableAlias) {
-    // some code goes here
+  public void reset(int tid, String alias) {
+    this.tableId = tid;
+    this.tableAlias = alias;
+    this.tupleDesc = getPrefixedTupleDesc(tid, alias);
+    this.iterator = Database.getCatalog().getDatabaseFile(tid).iterator(transactionId);
   }
 
   public SeqScan(TransactionId tid, int tableid) {
@@ -65,43 +93,38 @@ public class SeqScan implements DbIterator {
 
   @Override
   public void open() throws DbException, TransactionAbortedException {
-    // some code goes here
+    this.iterator.open();
   }
 
   /**
    * Returns the TupleDesc with field names from the underlying HeapFile,
-   * prefixed with the tableAlias string from the constructor. This prefix
-   * becomes useful when joining tables containing a field(s) with the same
-   * name.
+   * prefixed with the tableAlias string from the constructor.
    * 
    * @return the TupleDesc with field names from the underlying HeapFile,
    *         prefixed with the tableAlias string from the constructor.
    */
   @Override
   public TupleDesc getTupleDesc() {
-    // some code goes here
-    return null;
+    return tupleDesc;
   }
 
   @Override
   public boolean hasNext() throws TransactionAbortedException, DbException {
-    // some code goes here
-    return false;
+    return this.iterator.hasNext();
   }
 
   @Override
   public Tuple next() throws NoSuchElementException, TransactionAbortedException, DbException {
-    // some code goes here
-    return null;
+    return this.iterator.next();
   }
 
   @Override
   public void close() {
-    // some code goes here
+    this.iterator.close();
   }
 
   @Override
   public void rewind() throws DbException, NoSuchElementException, TransactionAbortedException {
-    // some code goes here
+    this.iterator.rewind();
   }
 }

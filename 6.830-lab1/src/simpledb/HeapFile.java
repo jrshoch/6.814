@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import com.google.common.io.Files;
+
 /**
  * HeapFile is an implementation of a DbFile that stores a collection of tuples
  * in no particular order. Tuples are stored on pages, each of which is a fixed
@@ -16,13 +18,18 @@ import java.util.ArrayList;
  */
 public class HeapFile implements DbFile {
 
+  private final File backingFile;
+  private final TupleDesc tupleDesc;
+  private final int numberOfPages;
   /**
    * Constructs a heap file backed by the specified file.
    * 
    * @param f the file that stores the on-disk backing store for this heap file.
    */
   public HeapFile(File f, TupleDesc td) {
-    // some code goes here
+    this.backingFile = f;
+    this.tupleDesc = td;
+    this.numberOfPages = (int) backingFile.length() / BufferPool.getPageSize();
   }
 
   /**
@@ -31,8 +38,7 @@ public class HeapFile implements DbFile {
    * @return the File backing this HeapFile on disk.
    */
   public File getFile() {
-    // some code goes here
-    return null;
+    return backingFile;
   }
 
   /**
@@ -46,8 +52,7 @@ public class HeapFile implements DbFile {
    */
   @Override
   public int getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+    return backingFile.getAbsoluteFile().hashCode();
   }
 
   /**
@@ -57,15 +62,16 @@ public class HeapFile implements DbFile {
    */
   @Override
   public TupleDesc getTupleDesc() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+    return tupleDesc;
   }
 
   // see DbFile.java for javadocs
   @Override
-  public Page readPage(PageId pid) {
-    // some code goes here
-    return null;
+  public Page readPage(PageId pid) throws IOException {
+    int offset = BufferPool.getPageSize() * pid.pageNumber();
+    byte[] data = new byte[BufferPool.getPageSize()];
+    System.arraycopy(Files.toByteArray(backingFile), offset, data, 0, BufferPool.getPageSize());
+    return new HeapPage(pid, data);
   }
 
   // see DbFile.java for javadocs
@@ -79,8 +85,7 @@ public class HeapFile implements DbFile {
    * Returns the number of pages in this HeapFile.
    */
   public int numPages() {
-    // some code goes here
-    return 0;
+    return numberOfPages;
   }
 
   // see DbFile.java for javadocs
@@ -103,9 +108,7 @@ public class HeapFile implements DbFile {
 
   // see DbFile.java for javadocs
   @Override
-  public DbFileIterator iterator(TransactionId tid) {
-    // some code goes here
-    return null;
+  public DbFileIterator iterator(TransactionId transactionId) {
+    return HeapFileIterator.create(getId(), numberOfPages, transactionId);
   }
-
 }

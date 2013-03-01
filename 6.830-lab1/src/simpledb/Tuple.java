@@ -3,6 +3,8 @@ package simpledb;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import com.google.common.collect.Lists;
+
 /**
  * Tuple maintains information about the contents of a tuple. Tuples have a
  * specified schema specified by a TupleDesc object and contain Field objects
@@ -12,6 +14,10 @@ public class Tuple implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
+  private TupleDesc tupleDesc;
+  private RecordId recordId;
+  private Field[] fieldArray;
+
   /**
    * Create a new tuple with the specified schema (type).
    * 
@@ -19,15 +25,14 @@ public class Tuple implements Serializable {
    *          with at least one field.
    */
   public Tuple(TupleDesc td) {
-    // some code goes here
+    resetTupleDesc(td);
   }
 
   /**
    * @return The TupleDesc representing the schema of this tuple.
    */
   public TupleDesc getTupleDesc() {
-    // some code goes here
-    return null;
+    return this.tupleDesc;
   }
 
   /**
@@ -35,8 +40,7 @@ public class Tuple implements Serializable {
    *         be null.
    */
   public RecordId getRecordId() {
-    // some code goes here
-    return null;
+    return recordId;
   }
 
   /**
@@ -45,7 +49,7 @@ public class Tuple implements Serializable {
    * @param rid the new RecordId for this tuple.
    */
   public void setRecordId(RecordId rid) {
-    // some code goes here
+    recordId = rid;
   }
 
   /**
@@ -55,7 +59,7 @@ public class Tuple implements Serializable {
    * @param f new value for the field.
    */
   public void setField(int i, Field f) {
-    // some code goes here
+    fieldArray[i] = f;
   }
 
   /**
@@ -64,8 +68,7 @@ public class Tuple implements Serializable {
    * @param i field index to return. Must be a valid index.
    */
   public Field getField(int i) {
-    // some code goes here
-    return null;
+    return fieldArray[i];
   }
 
   /**
@@ -78,22 +81,26 @@ public class Tuple implements Serializable {
    */
   @Override
   public String toString() {
-    // some code goes here
-    throw new UnsupportedOperationException("Implement this");
+    String string = "";
+    for (int i = 0; i < fieldArray.length - 1; i++) {
+      string += fieldArray[i].toString() + "\t";
+    }
+    string += fieldArray[fieldArray.length - 1].toString() + "\n";
+    return string;
   }
 
   /**
    * @return An iterator which iterates over all the fields of this tuple
    * */
   public Iterator<Field> fields() {
-    // some code goes here
-    return null;
+    return Lists.newArrayList(this.fieldArray).iterator();
   }
 
   /**
    * reset the TupleDesc of thi tuple
    * */
   public void resetTupleDesc(TupleDesc td) {
-    // some code goes here
+    this.tupleDesc = td;
+    this.fieldArray = new Field[td.numFields()];
   }
 }

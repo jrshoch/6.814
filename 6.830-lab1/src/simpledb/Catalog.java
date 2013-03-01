@@ -6,8 +6,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 /**
  * The Catalog keeps track of all available tables in the database and their
@@ -19,11 +24,21 @@ import java.util.UUID;
  */
 public class Catalog {
 
+  private final List<DbFile> files;
+  private final List<String> tableNames;
+  private final List<String> primaryKeyFields;
+  private final Map<String, Integer> nameToIdMap;
+  private final Map<Integer, Integer> idToIndexMap;
+
   /**
    * Constructor. Creates a new, empty catalog.
    */
   public Catalog() {
-    // some code goes here
+    this.files = Lists.newArrayList();
+    this.tableNames = Lists.newArrayList();
+    this.primaryKeyFields = Lists.newArrayList();
+    this.nameToIdMap = Maps.newHashMap();
+    this.idToIndexMap = Maps.newHashMap();
   }
 
   /**
@@ -38,8 +53,13 @@ public class Catalog {
    * @param pkeyField the name of the primary key field conflict exists, use the
    *          last table to be added as the table for a given name.
    */
-  public void addTable(DbFile file, String name, String pkeyField) {
-    // some code goes here
+  public void addTable(DbFile file, String tableName, String pkeyField) {
+    Integer id = new Integer(file.getId());
+    nameToIdMap.put(tableName, id);
+    idToIndexMap.put(id, new Integer(files.size()));
+    this.files.add(file);
+    this.tableNames.add(tableName);
+    this.primaryKeyFields.add(pkeyField);
   }
 
   public void addTable(DbFile file, String name) {
@@ -63,9 +83,22 @@ public class Catalog {
    * 
    * @throws NoSuchElementException if the table doesn't exist
    */
-  public int getTableId(String name) throws NoSuchElementException {
-    // some code goes here
-    return 0;
+  public int getTableId(String tableName) throws NoSuchElementException {
+    if (nameToIdMap.containsKey(tableName)) {
+      return nameToIdMap.get(tableName).intValue();
+    }
+    throw new NoSuchElementException();
+  }
+  
+  private void checkId(int tableId) throws NoSuchElementException {
+    if (!idToIndexMap.containsKey(new Integer(tableId))) {
+      throw new NoSuchElementException();
+    }
+  }
+  
+  private int getIndex(int tableId) throws NoSuchElementException {
+    checkId(tableId);
+    return idToIndexMap.get(new Integer(tableId)).intValue();
   }
 
   /**
@@ -75,9 +108,8 @@ public class Catalog {
    *          function passed to addTable
    * @throws NoSuchElementException if the table doesn't exist
    */
-  public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-    // some code goes here
-    return null;
+  public TupleDesc getTupleDesc(int tableId) throws NoSuchElementException {
+    return files.get(getIndex(tableId)).getTupleDesc();
   }
 
   /**
@@ -87,29 +119,53 @@ public class Catalog {
    * @param tableid The id of the table, as specified by the DbFile.getId()
    *          function passed to addTable
    */
-  public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-    // some code goes here
-    return null;
+  public DbFile getDatabaseFile(int tableId) throws NoSuchElementException {
+    return files.get(getIndex(tableId));
   }
 
-  public String getPrimaryKey(int tableid) {
-    // some code goes here
-    return null;
+  public String getPrimaryKey(int tableId) {
+    return primaryKeyFields.get(getIndex(tableId));
+  }
+
+  protected List<DbFile> getFiles() {
+    return files;
   }
 
   public Iterator<Integer> tableIdIterator() {
-    // some code goes here
-    return null;
+    return new Iterator<Integer>() {
+      
+      private int index = 0;
+
+      @Override
+      public boolean hasNext() {
+        return index < getFiles().size();
+      }
+
+      @Override
+      public Integer next() {
+        Integer id = new Integer(getFiles().get(index).getId());
+        index += 1;
+        return id;
+      }
+
+      @Override
+      public void remove() {
+        throw new UnsupportedOperationException();
+      }
+      
+    };
   }
 
-  public String getTableName(int id) {
-    // some code goes here
-    return null;
+  public String getTableName(int tableId) {
+    return tableNames.get(getIndex(tableId));
   }
 
   /** Delete all tables from the catalog */
   public void clear() {
-    // some code goes here
+    files.clear();
+    tableNames.clear();
+    primaryKeyFields.clear();
+    nameToIdMap.clear();
   }
 
   /**

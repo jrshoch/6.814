@@ -18,13 +18,16 @@ import java.util.NoSuchElementException;
  */
 public class HeapPage implements Page {
 
-  final HeapPageId pid;
-  final TupleDesc td;
-  final byte header[];
-  final Tuple tuples[];
-  final int numSlots;
+  private static final int BYTE_SIZE = 8;
+
+  private final PageId heapPageId;
+  private final TupleDesc tupleDesc;
+  private final byte header[];
+  private final Tuple tuples[];
+  private final int numberOfTupleSlots;
 
   byte[] oldData;
+  
   private final Byte oldDataLock = new Byte((byte) 0);
 
   /**
@@ -46,20 +49,20 @@ public class HeapPage implements Page {
    * @see Catalog#getTupleDesc
    * @see BufferPool#getPageSize()
    */
-  public HeapPage(HeapPageId id, byte[] data) throws IOException {
-    this.pid = id;
-    this.td = Database.getCatalog().getTupleDesc(id.getTableId());
-    this.numSlots = getNumTuples();
+  public HeapPage(PageId id, byte[] data) throws IOException {
+    this.heapPageId = id;
+    this.tupleDesc = Database.getCatalog().getTupleDesc(id.getTableId());
+    this.numberOfTupleSlots = getNumTuples(this.tupleDesc);
     DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data));
 
     // allocate and read the header slots of this page
-    header = new byte[getHeaderSize()];
+    header = new byte[getHeaderSize(this.numberOfTupleSlots)];
     for (int i = 0; i < header.length; i++)
       header[i] = dis.readByte();
 
-    tuples = new Tuple[numSlots];
+    // allocate and read the actual records of this page
+    tuples = new Tuple[numberOfTupleSlots];
     try {
-      // allocate and read the actual records of this page
       for (int i = 0; i < tuples.length; i++)
         tuples[i] = readNextTuple(dis, i);
     } catch (NoSuchElementException e) {
@@ -75,10 +78,9 @@ public class HeapPage implements Page {
    * 
    * @return the number of tuples on this page
    */
-  private int getNumTuples() {
-    // some code goes here
-    return 0;
-
+  private static int getNumTuples(TupleDesc tupleDesc) {
+    return (int) Math.floor((BufferPool.getPageSize() * 8)
+        / ((double) (tupleDesc.getSize() * 8 + 1)));
   }
 
   /**
@@ -88,11 +90,8 @@ public class HeapPage implements Page {
    * @return the number of bytes in the header of a page in a HeapFile with each
    *         tuple occupying tupleSize bytes
    */
-  private int getHeaderSize() {
-
-    // some code goes here
-    return 0;
-
+  private static int getHeaderSize(int numberOfTupleSlots) {
+    return (int) Math.ceil(numberOfTupleSlots / ((double) 8));
   }
 
   /**
@@ -105,7 +104,7 @@ public class HeapPage implements Page {
       synchronized (oldDataLock) {
         oldDataRef = oldData;
       }
-      return new HeapPage(pid, oldDataRef);
+      return new HeapPage(heapPageId, oldDataRef);
     } catch (IOException e) {
       e.printStackTrace();
       // should never happen -- we parsed it OK before!
@@ -125,9 +124,8 @@ public class HeapPage implements Page {
    * @return the PageId associated with this page.
    */
   @Override
-  public HeapPageId getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+  public PageId getId() {
+    return heapPageId;
   }
 
   /**
@@ -137,7 +135,7 @@ public class HeapPage implements Page {
     // if associated bit is not set, read forward to the next tuple, and
     // return null.
     if (!isSlotUsed(slotId)) {
-      for (int i = 0; i < td.getSize(); i++) {
+      for (int i = 0; i < tupleDesc.getSize(); i++) {
         try {
           dis.readByte();
         } catch (IOException e) {
@@ -148,12 +146,12 @@ public class HeapPage implements Page {
     }
 
     // read fields in the tuple
-    Tuple t = new Tuple(td);
-    RecordId rid = new RecordId(pid, slotId);
+    Tuple t = new Tuple(tupleDesc);
+    RecordId rid = new RecordId(heapPageId, slotId);
     t.setRecordId(rid);
     try {
-      for (int j = 0; j < td.numFields(); j++) {
-        Field f = td.getFieldType(j).parse(dis);
+      for (int j = 0; j < tupleDesc.numFields(); j++) {
+        Field f = tupleDesc.getFieldType(j).parse(dis);
         t.setField(j, f);
       }
     } catch (java.text.ParseException e) {
@@ -196,7 +194,7 @@ public class HeapPage implements Page {
 
       // empty slot
       if (!isSlotUsed(i)) {
-        for (int j = 0; j < td.getSize(); j++) {
+        for (int j = 0; j < tupleDesc.getSize(); j++) {
           try {
             dos.writeByte(0);
           } catch (IOException e) {
@@ -208,7 +206,7 @@ public class HeapPage implements Page {
       }
 
       // non-empty slot
-      for (int j = 0; j < td.numFields(); j++) {
+      for (int j = 0; j < tupleDesc.numFields(); j++) {
         Field f = tuples[i].getField(j);
         try {
           f.serialize(dos);
@@ -220,10 +218,10 @@ public class HeapPage implements Page {
     }
 
     // padding
-    int zerolen = BufferPool.getPageSize() - (header.length + td.getSize() * tuples.length); // -
-                                                                                             // numSlots
-                                                                                             // *
-                                                                                             // td.getSize();
+    int zerolen = BufferPool.getPageSize() - (header.length + tupleDesc.getSize() * tuples.length); // -
+    // numSlots
+    // *
+    // td.getSize();
     byte[] zeroes = new byte[zerolen];
     try {
       dos.write(zeroes, 0, zerolen);
@@ -301,22 +299,6 @@ public class HeapPage implements Page {
   }
 
   /**
-   * Returns the number of empty slots on this page.
-   */
-  public int getNumEmptySlots() {
-    // some code goes here
-    return 0;
-  }
-
-  /**
-   * Returns true if associated slot on this page is filled.
-   */
-  public boolean isSlotUsed(int i) {
-    // some code goes here
-    return false;
-  }
-
-  /**
    * Abstraction to fill or clear a slot on this page.
    */
   private void markSlotUsed(int i, boolean value) {
@@ -325,13 +307,88 @@ public class HeapPage implements Page {
   }
 
   /**
+   * Returns the number of empty slots on this page.
+   */
+  public int getNumEmptySlots() {
+    int count = 0;
+    for (int i = 0; i < header.length; i++) {
+      int bytePresentCount = 0;
+      int headerByte = header[i];
+      if (headerByte < 0) {
+        bytePresentCount++;
+        headerByte += 1 << (BYTE_SIZE - 1);
+      }
+      for (; headerByte != 0; headerByte = headerByte >> 1) {
+        if (headerByte % 2 == 1)
+          bytePresentCount++;
+      }
+      count += (8 - bytePresentCount);
+    }
+    return count;
+  }
+
+  /**
+   * Returns true if associated slot on this page is filled.
+   */
+  public boolean isSlotUsed(int i) {
+    int headerByte = i / 8;
+    int byteBit = i % 8;
+    return (header[headerByte] & (1 << byteBit)) != 0;
+  }
+
+  /**
+   * Abstraction to fill or clear a slot on this page.
+   */
+  private void setSlot(int i, boolean value) {
+    // some code goes here
+    // not necessary for lab1
+  }
+
+  protected int getFirstTupleIndex(int maxIndex) {
+    return getNextTupleIndex(0, maxIndex);
+  }
+
+  protected int getNextTupleIndex(int startIndex, int maxIndex) {
+    int nextTupleIndex = startIndex;
+    while (nextTupleIndex < maxIndex && !isSlotUsed(nextTupleIndex)) {
+      nextTupleIndex++;
+    }
+    return nextTupleIndex;
+  }
+
+  protected Tuple[] getTuples() {
+    return tuples;
+  }
+
+  /**
    * @return an iterator over all tuples on this page (calling remove on this
    *         iterator throws an UnsupportedOperationException) (note that this
    *         iterator shouldn't return tuples in empty slots!)
    */
   public Iterator<Tuple> iterator() {
-    // some code goes here
-    return null;
+    return new Iterator<Tuple>() {
+
+      int maxIndex = getTuples().length;
+      int currentIndex = getFirstTupleIndex(maxIndex);
+
+      @Override
+      public boolean hasNext() {
+        return currentIndex < maxIndex;
+      }
+
+      @Override
+      public Tuple next() {
+        Tuple tuple = getTuples()[currentIndex];
+        currentIndex = getNextTupleIndex(currentIndex + 1, maxIndex);
+        return tuple;
+      }
+
+      @Override
+      public void remove() {
+        throw new UnsupportedOperationException();
+      }
+
+    };
   }
 
 }
