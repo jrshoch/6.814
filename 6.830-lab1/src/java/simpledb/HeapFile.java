@@ -22,6 +22,7 @@ public class HeapFile implements DbFile {
   private final File backingFile;
   private final TupleDesc tupleDesc;
   private final int numberOfPages;
+
   /**
    * Constructs a heap file backed by the specified file.
    * 
@@ -68,15 +69,19 @@ public class HeapFile implements DbFile {
 
   // see DbFile.java for javadocs
   @Override
-  public Page readPage(PageId pid) throws IOException {
+  public Page readPage(PageId pid) {
     int offset = BufferPool.getPageSize() * pid.pageNumber();
-    FileChannel fileChannel = new FileInputStream(backingFile).getChannel();
-    ByteBuffer readData = ByteBuffer.allocate(BufferPool.getPageSize());
-    int numberOfBytesRead = fileChannel.read(readData, offset);
-    if (numberOfBytesRead < BufferPool.getPageSize()) {
-      throw new IOException("Did not read entire page successfully.");
+    try {
+      FileChannel fileChannel = new FileInputStream(backingFile).getChannel();
+      ByteBuffer readData = ByteBuffer.allocate(BufferPool.getPageSize());
+      int numberOfBytesRead = fileChannel.read(readData, offset);
+      if (numberOfBytesRead == BufferPool.getPageSize()) {
+        return new HeapPage(pid, readData.array());
+      }
+      throw new RuntimeException("Did not read entire page successfully.");
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    return new HeapPage(pid, readData.array());
   }
 
   // see DbFile.java for javadocs

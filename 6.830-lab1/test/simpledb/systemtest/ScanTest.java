@@ -88,7 +88,7 @@ public class ScanTest extends SimpleDbTestBase {
             }
 
             @Override
-            public Page readPage(PageId pid) throws IOException, NoSuchElementException {
+            public Page readPage(PageId pid) throws NoSuchElementException {
                 readCount += 1;
                 return super.readPage(pid);
             }
