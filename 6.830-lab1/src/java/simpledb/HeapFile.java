@@ -1,10 +1,11 @@
 package simpledb;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-
-import com.google.common.io.Files;
 
 /**
  * HeapFile is an implementation of a DbFile that stores a collection of tuples
@@ -69,9 +70,13 @@ public class HeapFile implements DbFile {
   @Override
   public Page readPage(PageId pid) throws IOException {
     int offset = BufferPool.getPageSize() * pid.pageNumber();
-    byte[] data = new byte[BufferPool.getPageSize()];
-    System.arraycopy(Files.toByteArray(backingFile), offset, data, 0, BufferPool.getPageSize());
-    return new HeapPage(pid, data);
+    FileChannel fileChannel = new FileInputStream(backingFile).getChannel();
+    ByteBuffer readData = ByteBuffer.allocate(BufferPool.getPageSize());
+    int numberOfBytesRead = fileChannel.read(readData, offset);
+    if (numberOfBytesRead < BufferPool.getPageSize()) {
+      throw new IOException("Did not read entire page successfully.");
+    }
+    return new HeapPage(pid, readData.array());
   }
 
   // see DbFile.java for javadocs

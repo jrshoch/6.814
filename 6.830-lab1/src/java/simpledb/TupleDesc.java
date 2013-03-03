@@ -1,14 +1,12 @@
 package simpledb;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
  * TupleDesc describes the schema of a tuple.
@@ -43,7 +41,7 @@ public class TupleDesc implements Serializable {
     }
     
     public static List<TDItem> getListFrom(Type[] typeAr, String[] fieldAr) {
-      List<TDItem> list = Lists.newArrayList();
+      List<TDItem> list = new ArrayList<TDItem>();
       for (int i = 0; i < typeAr.length; i++) {
         list.add(new TDItem(typeAr[i], fieldAr[i]));
       }
@@ -109,8 +107,8 @@ public class TupleDesc implements Serializable {
   }
   
   private TupleDesc(List<TDItem> tdItems) {
-    this.tdItems = ImmutableList.<TupleDesc.TDItem>copyOf(tdItems);
-    this.nameToIdMap = Maps.newHashMap();
+    this.tdItems = new ArrayList<TDItem>(tdItems);
+    this.nameToIdMap = new HashMap<String, Integer>();
     int sizeCalculation = 0;
     for (TDItem tdItem : tdItems) {
       sizeCalculation += tdItem.fieldType.getLen();
@@ -204,7 +202,7 @@ public class TupleDesc implements Serializable {
    * @return the new TupleDesc
    */
   public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
-    List<TDItem> newTdItems = Lists.newArrayList(td1.tdItems);
+    List<TDItem> newTdItems = new ArrayList<TDItem>(td1.tdItems);
     newTdItems.addAll(td2.tdItems);
     return new TupleDesc(newTdItems);
   }

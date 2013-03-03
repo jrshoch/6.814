@@ -5,14 +5,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
  * The Catalog keeps track of all available tables in the database and their
@@ -34,11 +32,11 @@ public class Catalog {
    * Constructor. Creates a new, empty catalog.
    */
   public Catalog() {
-    this.files = Lists.newArrayList();
-    this.tableNames = Lists.newArrayList();
-    this.primaryKeyFields = Lists.newArrayList();
-    this.nameToIdMap = Maps.newHashMap();
-    this.idToIndexMap = Maps.newHashMap();
+    this.files = new ArrayList<DbFile>();
+    this.tableNames = new ArrayList<String>();
+    this.primaryKeyFields = new ArrayList<String>();
+    this.nameToIdMap = new HashMap<String, Integer>();
+    this.idToIndexMap = new HashMap<Integer, Integer>();
   }
 
   /**

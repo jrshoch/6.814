@@ -1,9 +1,8 @@
 package simpledb;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Iterator;
-
-import com.google.common.collect.Lists;
 
 /**
  * Tuple maintains information about the contents of a tuple. Tuples have a
@@ -93,7 +92,7 @@ public class Tuple implements Serializable {
    * @return An iterator which iterates over all the fields of this tuple
    * */
   public Iterator<Field> fields() {
-    return Lists.newArrayList(this.fieldArray).iterator();
+    return Arrays.asList(this.fieldArray).iterator();
   }
 
   /**

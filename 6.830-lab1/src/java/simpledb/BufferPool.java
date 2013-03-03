@@ -1,9 +1,8 @@
 package simpledb;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
-
-import com.google.common.collect.Maps;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from disk.
@@ -39,7 +38,7 @@ public class BufferPool {
    */
   public BufferPool(int numPages) {
     this.maxPages = numPages;
-    this.pageIdToPages = Maps.newHashMap();
+    this.pageIdToPages = new HashMap<PageId, Page>();
   }
 
   public static int getPageSize() {
