@@ -1,0 +1,77 @@
+Lab 2 Writeup
+Jason Hoch
+3/16/2013
+
+First things first, I'm using 1 late day on this assignment - I wasn't sure if
+I had to specify that somewhere.
+
+Describe any design decisions you made
+
+For my joins, I used nested-loops, tracking my position in the first child
+iterator so as to maintain consistent iteration between calls to fetchNext().
+For my eviction scheme, I went with a simple random eviction.  As we move
+forward and put SimpleDB under larger and more interesting workloads, I would
+be interested in trying different join and eviction methods.  At the moment
+I wanted to keep things simple, and every scheme has its downside, while a
+random eviction scheme will perform neither excellently nor terribly for any
+given workload.  The "randomness" is derived from the unpredictable hash-
+ordering used in java.util's HashMap; another improvement for the future would
+be using something even less predictable.
+
+Another design decision I made was to create a helper class called
+CountingAggregator, that performs a count over a given aggregate query.  This
+was a useful extraction of common functionality from StringAggregator and
+IntegerAggregator - it didn't make sense to have the same counting code in
+both classes, and in the AVG case of IntegerAggregator it was helpful to have
+a separate entity keeping track of the count while the IntegerAggregator
+recorded the total.  In the future there may be even greater common
+functionality that could be separated into a base abstract class.
+
+Most other design decisions were minor, e.g. upon creation of a new page in
+HeapFile, creating it and then writing it to disk without the use of
+BufferPool.
+
+Discuss and justify any changes you made to the API
+
+For the most part I stuck to the exercises outlined and filled in the pre-
+determined API.  One change I did make was to the Aggregator interface.  The
+given API allowed the Aggregator to return a DbIterator, and logically the
+Aggregate operation should use this to return Tuples.  However, the TupleDesc
+for an Aggregate operation contained useful titles for its columns, and for
+the Tuples it was returning (through the Aggregator's DbIterator) to have
+matching titles, the Aggregator would have to go to inconvenient measures to
+obtain the names of the columns it was aggregating or by which it was grouping.
+The possible solutions were 1) pass the names of the columns or a TupleDesc
+to Aggregator, 2) have Aggregator sniff the Tuples it was aggregating to obtain
+the column names, or 3) add a method to Aggregator that returned an
+Iterable<Tuple> and then have Aggregate create the TupleDesc and DbIterator.
+I went with the third option, not wanting to complicate the constructor of
+Aggregator and also wanting to avoid the hacky nature of solution #2.  I still
+implemented the .iterator() method in Aggregator, but for now my Aggregate
+operator uses .getTuples() to create a TupleIterator instead.  Although it
+wasn't strictly necessary for the column names in the TupleDesc of an iterator
+to match those of its Tuples, it's an invariant I'd like to maintain.
+
+Describe any missing or incomplete elements of your code
+
+Anything that wasn't marked necessary for lab1|lab2 - other than that I added
+all the functionality required for lab 2.
+
+Describe how long you spent on the lab, and whether there was anything you
+found particularly difficult or confusing.
+
+I think in total I spent around 12-14 hours on this lab.  I got tripped up on
+the interactions between BufferPool, HeapPage, and HeapFile again.  I ended up
+piecing together various Piazza posts, the lab Tutorial slides, and the lab
+handout itself to figure out what I was doing.  I think having better-named
+methods in the API could help in the future.  When I found myself getting
+bogged down in these three classes again, I tried to be conscious of what
+insights would make me spend less time were I to do the lab again, and one small
+thing that could make a big difference is the .getId() method in HeapFile -
+it's very unclear when working from scratch that this is the tableId!!  I spent
+a long time trying to figure out how I could get the tableId given the
+parameters in the HeapFile method, only to finally remember when reading the
+documentation for several methods that the HeapFile is what creates the tableId.
+I'd say I lost about 1.5-2 hours on this, so it wasn't horrible, the majority
+of my time spent on the lab was solid implementing of the API and efficient
+debugging.
