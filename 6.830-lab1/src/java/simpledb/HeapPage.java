@@ -26,9 +26,12 @@ public class HeapPage implements Page {
   private final Tuple tuples[];
   private final int numberOfTupleSlots;
 
-  byte[] oldData;
-  
+  private byte[] oldData;
+
   private final Byte oldDataLock = new Byte((byte) 0);
+  
+  private boolean isDirty;
+  private TransactionId dirtyingTransactionId;
 
   /**
    * Create a HeapPage from a set of bytes of data read from disk. The format of
@@ -70,6 +73,9 @@ public class HeapPage implements Page {
     }
     dis.close();
 
+    this.isDirty = false;
+    this.dirtyingTransactionId = null;
+    
     setBeforeImage();
   }
 
@@ -260,8 +266,16 @@ public class HeapPage implements Page {
    * @param t The tuple to delete
    */
   public void deleteTuple(Tuple t) throws DbException {
-    // some code goes here
-    // not necessary for lab1
+    if (t.getRecordId() == null || !(t.getRecordId().getPageId().equals(heapPageId))) {
+      throw new DbException("Tuple can only be deleted from its page.");
+    }
+    int tupleNumber = t.getRecordId().tupleno();
+    if (!isSlotUsed(tupleNumber)) {
+      throw new DbException("Tuple's slot is already empty.");
+    }
+    markSlotUsed(tupleNumber, false);
+    t.setRecordId(null);
+    tuples[tupleNumber] = null;
   }
 
   /**
@@ -273,8 +287,16 @@ public class HeapPage implements Page {
    * @param t The tuple to add.
    */
   public void insertTuple(Tuple t) throws DbException {
-    // some code goes here
-    // not necessary for lab1
+    if (!(t.getTupleDesc().equals(tupleDesc))) {
+      throw new DbException("Cannot insert a Tuple with a different TupleDesc.");
+    }
+    int emptySlotIndex = getFirstEmptyTupleIndex();
+    if (emptySlotIndex == numberOfTupleSlots) {
+      throw new DbException("No empty slots available for Tuple insertion.");
+    }
+    t.setRecordId(new RecordId(heapPageId, emptySlotIndex));
+    markSlotUsed(emptySlotIndex, true);
+    tuples[emptySlotIndex] = t;
   }
 
   /**
@@ -283,8 +305,8 @@ public class HeapPage implements Page {
    */
   @Override
   public void markDirty(boolean dirty, TransactionId tid) {
-    // some code goes here
-    // not necessary for lab1
+    this.isDirty = dirty;
+    this.dirtyingTransactionId = isDirty ? tid : null;
   }
 
   /**
@@ -293,17 +315,14 @@ public class HeapPage implements Page {
    */
   @Override
   public TransactionId isDirty() {
-    // some code goes here
-    // Not necessary for lab1
-    return null;
+    return isDirty ? dirtyingTransactionId : null;
   }
 
   /**
    * Abstraction to fill or clear a slot on this page.
    */
   private void markSlotUsed(int i, boolean value) {
-    // some code goes here
-    // not necessary for lab1
+    setSlot(i, value);
   }
 
   /**
@@ -340,22 +359,33 @@ public class HeapPage implements Page {
    * Abstraction to fill or clear a slot on this page.
    */
   private void setSlot(int i, boolean value) {
-    // some code goes here
-    // not necessary for lab1
+    int headerByte = i / 8;
+    int byteBit = i % 8;
+    if (value != isSlotUsed(i)) {
+      header[headerByte] ^= (1 << byteBit);
+    }
   }
 
-  protected int getFirstTupleIndex(int maxIndex) {
-    return getNextTupleIndex(0, maxIndex);
+  protected int getFirstUsedTupleIndex(int maxIndex) {
+    return getNextUsedTupleIndex(0, maxIndex);
+  }
+  
+  protected int getFirstEmptyTupleIndex() {
+    return getNextTupleIndexOfValue(0, numberOfTupleSlots, false);
   }
 
-  protected int getNextTupleIndex(int startIndex, int maxIndex) {
+  protected int getNextUsedTupleIndex(int startIndex, int maxIndex) {
+    return getNextTupleIndexOfValue(startIndex, maxIndex, true);
+  }
+  
+  protected int getNextTupleIndexOfValue(int startIndex, int maxIndex, boolean value) {
     int nextTupleIndex = startIndex;
-    while (nextTupleIndex < maxIndex && !isSlotUsed(nextTupleIndex)) {
+    while (nextTupleIndex < maxIndex && (isSlotUsed(nextTupleIndex) != value)) {
       nextTupleIndex++;
     }
     return nextTupleIndex;
   }
-
+  
   protected Tuple[] getTuples() {
     return tuples;
   }
@@ -369,7 +399,7 @@ public class HeapPage implements Page {
     return new Iterator<Tuple>() {
 
       int maxIndex = getTuples().length;
-      int currentIndex = getFirstTupleIndex(maxIndex);
+      int currentIndex = getFirstUsedTupleIndex(maxIndex);
 
       @Override
       public boolean hasNext() {
@@ -379,7 +409,7 @@ public class HeapPage implements Page {
       @Override
       public Tuple next() {
         Tuple tuple = getTuples()[currentIndex];
-        currentIndex = getNextTupleIndex(currentIndex + 1, maxIndex);
+        currentIndex = getNextUsedTupleIndex(currentIndex + 1, maxIndex);
         return tuple;
       }
 

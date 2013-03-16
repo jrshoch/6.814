@@ -87,13 +87,13 @@ public class Catalog {
     }
     throw new NoSuchElementException();
   }
-  
+
   private void checkId(int tableId) throws NoSuchElementException {
     if (!idToIndexMap.containsKey(new Integer(tableId))) {
       throw new NoSuchElementException();
     }
   }
-  
+
   private int getIndex(int tableId) throws NoSuchElementException {
     checkId(tableId);
     return idToIndexMap.get(new Integer(tableId)).intValue();
@@ -131,7 +131,7 @@ public class Catalog {
 
   public Iterator<Integer> tableIdIterator() {
     return new Iterator<Integer>() {
-      
+
       private int index = 0;
 
       @Override
@@ -150,7 +150,7 @@ public class Catalog {
       public void remove() {
         throw new UnsupportedOperationException();
       }
-      
+
     };
   }
 
@@ -214,6 +214,7 @@ public class Catalog {
         addTable(tabHf, name, primaryKey);
         System.out.println("Added table : " + name + " with schema " + t);
       }
+      br.close();
     } catch (IOException e) {
       e.printStackTrace();
       System.exit(0);

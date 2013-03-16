@@ -79,8 +79,8 @@ import java.util.Set;
 public class LogFile {
 
   final File logFile;
-  private RandomAccessFile randomAccessFile;
-  boolean recoveryUndecided; // no call to recover() and no append to log
+  private RandomAccessFile raf;
+  Boolean recoveryUndecided; // no call to recover() and no append to log
 
   static final int ABORT_RECORD = 1;
   static final int COMMIT_RECORD = 2;
@@ -111,8 +111,8 @@ public class LogFile {
    */
   public LogFile(File f) throws IOException {
     this.logFile = f;
-    randomAccessFile = new RandomAccessFile(f, "rw");
-    recoveryUndecided = true;
+    raf = new RandomAccessFile(f, "rw");
+    recoveryUndecided = Boolean.TRUE;
 
     // install shutdown hook to force cleanup on close
     // Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -130,13 +130,13 @@ public class LogFile {
   // the log.
   void preAppend() throws IOException {
     totalRecords++;
-    if (recoveryUndecided) {
-      recoveryUndecided = false;
-      randomAccessFile.seek(0);
-      randomAccessFile.setLength(0);
-      randomAccessFile.writeLong(NO_CHECKPOINT_ID);
-      randomAccessFile.seek(randomAccessFile.length());
-      currentOffset = randomAccessFile.getFilePointer();
+    if (recoveryUndecided.booleanValue()) {
+      recoveryUndecided = Boolean.FALSE;
+      raf.seek(0);
+      raf.setLength(0);
+      raf.writeLong(NO_CHECKPOINT_ID);
+      raf.seek(raf.length());
+      currentOffset = raf.getFilePointer();
     }
   }
 
@@ -165,10 +165,10 @@ public class LogFile {
         // live transactions (needs tidToFirstLogRecord)
         rollback(tid);
 
-        randomAccessFile.writeInt(ABORT_RECORD);
-        randomAccessFile.writeLong(tid.getId());
-        randomAccessFile.writeLong(currentOffset);
-        currentOffset = randomAccessFile.getFilePointer();
+        raf.writeInt(ABORT_RECORD);
+        raf.writeLong(tid.getId());
+        raf.writeLong(currentOffset);
+        currentOffset = raf.getFilePointer();
         force();
         tidToFirstLogRecord.remove(new Long(tid.getId()));
       }
@@ -186,10 +186,10 @@ public class LogFile {
     Debug.log("COMMIT " + tid.getId());
     // should we verify that this is a live transaction?
 
-    randomAccessFile.writeInt(COMMIT_RECORD);
-    randomAccessFile.writeLong(tid.getId());
-    randomAccessFile.writeLong(currentOffset);
-    currentOffset = randomAccessFile.getFilePointer();
+    raf.writeInt(COMMIT_RECORD);
+    raf.writeLong(tid.getId());
+    raf.writeLong(currentOffset);
+    currentOffset = raf.getFilePointer();
     force();
     tidToFirstLogRecord.remove(new Long(tid.getId()));
   }
@@ -204,7 +204,7 @@ public class LogFile {
    * @see simpledb.Page#getBeforeImage
    */
   public synchronized void logWrite(TransactionId tid, Page before, Page after) throws IOException {
-    Debug.log("WRITE, offset = " + randomAccessFile.getFilePointer());
+    Debug.log("WRITE, offset = " + raf.getFilePointer());
     preAppend();
     /*
      * update record conists of
@@ -212,13 +212,13 @@ public class LogFile {
      * record type transaction id before page data (see writePageData) after
      * page data start offset
      */
-    randomAccessFile.writeInt(UPDATE_RECORD);
-    randomAccessFile.writeLong(tid.getId());
+    raf.writeInt(UPDATE_RECORD);
+    raf.writeLong(tid.getId());
 
-    writePageData(randomAccessFile, before);
-    writePageData(randomAccessFile, after);
-    randomAccessFile.writeLong(currentOffset);
-    currentOffset = randomAccessFile.getFilePointer();
+    writePageData(raf, before);
+    writePageData(raf, after);
+    raf.writeLong(currentOffset);
+    currentOffset = raf.getFilePointer();
 
     Debug.log("WRITE OFFSET = " + currentOffset);
   }
@@ -314,11 +314,11 @@ public class LogFile {
       throw new IOException("double logXactionBegin()");
     }
     preAppend();
-    randomAccessFile.writeInt(BEGIN_RECORD);
-    randomAccessFile.writeLong(tid.getId());
-    randomAccessFile.writeLong(currentOffset);
+    raf.writeInt(BEGIN_RECORD);
+    raf.writeLong(tid.getId());
+    raf.writeLong(currentOffset);
     tidToFirstLogRecord.put(new Long(tid.getId()), new Long(currentOffset));
-    currentOffset = randomAccessFile.getFilePointer();
+    currentOffset = raf.getFilePointer();
 
     Debug.log("BEGIN OFFSET = " + currentOffset);
   }
@@ -335,29 +335,29 @@ public class LogFile {
         Iterator<Long> els = keys.iterator();
         force();
         Database.getBufferPool().flushAllPages();
-        startCpOffset = randomAccessFile.getFilePointer();
-        randomAccessFile.writeInt(CHECKPOINT_RECORD);
-        randomAccessFile.writeLong(-1); // no tid , but leave space for convenience
+        startCpOffset = raf.getFilePointer();
+        raf.writeInt(CHECKPOINT_RECORD);
+        raf.writeLong(-1); // no tid , but leave space for convenience
 
         // write list of outstanding transactions
-        randomAccessFile.writeInt(keys.size());
+        raf.writeInt(keys.size());
         while (els.hasNext()) {
           Long key = els.next();
           Debug.log("WRITING CHECKPOINT TRANSACTION ID: " + key);
-          randomAccessFile.writeLong(key.longValue());
+          raf.writeLong(key.longValue());
           // Debug.log("WRITING CHECKPOINT TRANSACTION OFFSET: " +
           // tidToFirstLogRecord.get(key));
-          randomAccessFile.writeLong(tidToFirstLogRecord.get(key).longValue());
+          raf.writeLong(tidToFirstLogRecord.get(key).longValue());
         }
 
         // once the CP is written, make sure the CP location at the
         // beginning of the log file is updated
-        endCpOffset = randomAccessFile.getFilePointer();
-        randomAccessFile.seek(0);
-        randomAccessFile.writeLong(startCpOffset);
-        randomAccessFile.seek(endCpOffset);
-        randomAccessFile.writeLong(currentOffset);
-        currentOffset = randomAccessFile.getFilePointer();
+        endCpOffset = raf.getFilePointer();
+        raf.seek(0);
+        raf.writeLong(startCpOffset);
+        raf.seek(endCpOffset);
+        raf.writeLong(currentOffset);
+        currentOffset = raf.getFilePointer();
         // Debug.log("CP OFFSET = " + currentOffset);
       }
     }
@@ -370,27 +370,27 @@ public class LogFile {
    */
   public synchronized void logTruncate() throws IOException {
     preAppend();
-    randomAccessFile.seek(0);
-    long cpLoc = randomAccessFile.readLong();
+    raf.seek(0);
+    long cpLoc = raf.readLong();
 
     long minLogRecord = cpLoc;
 
     if (cpLoc != -1L) {
-      randomAccessFile.seek(cpLoc);
-      int cpType = randomAccessFile.readInt();
+      raf.seek(cpLoc);
+      int cpType = raf.readInt();
       @SuppressWarnings("unused")
-      long cpTid = randomAccessFile.readLong();
+      long cpTid = raf.readLong();
 
       if (cpType != CHECKPOINT_RECORD) {
         throw new RuntimeException("Checkpoint pointer does not point to checkpoint record");
       }
 
-      int numOutstanding = randomAccessFile.readInt();
+      int numOutstanding = raf.readInt();
 
       for (int i = 0; i < numOutstanding; i++) {
         @SuppressWarnings("unused")
-        long tid = randomAccessFile.readLong();
-        long firstLogRecord = randomAccessFile.readLong();
+        long tid = raf.readLong();
+        long firstLogRecord = raf.readLong();
         if (firstLogRecord < minLogRecord) {
           minLogRecord = firstLogRecord;
         }
@@ -403,13 +403,13 @@ public class LogFile {
     logNew.seek(0);
     logNew.writeLong((cpLoc - minLogRecord) + LONG_SIZE);
 
-    randomAccessFile.seek(minLogRecord);
+    raf.seek(minLogRecord);
 
     // have to rewrite log records since offsets are different after truncation
     while (true) {
       try {
-        int type = randomAccessFile.readInt();
-        long record_tid = randomAccessFile.readLong();
+        int type = raf.readInt();
+        long record_tid = raf.readLong();
         long newStart = logNew.getFilePointer();
 
         Debug.log("NEW START = " + newStart);
@@ -419,18 +419,18 @@ public class LogFile {
 
         switch (type) {
         case UPDATE_RECORD:
-          Page before = readPageData(randomAccessFile);
-          Page after = readPageData(randomAccessFile);
+          Page before = readPageData(raf);
+          Page after = readPageData(raf);
 
           writePageData(logNew, before);
           writePageData(logNew, after);
           break;
         case CHECKPOINT_RECORD:
-          int numXactions = randomAccessFile.readInt();
+          int numXactions = raf.readInt();
           logNew.writeInt(numXactions);
           while (numXactions-- > 0) {
-            long xid = randomAccessFile.readLong();
-            long xoffset = randomAccessFile.readLong();
+            long xid = raf.readLong();
+            long xoffset = raf.readLong();
             logNew.writeLong(xid);
             logNew.writeLong((xoffset - minLogRecord) + LONG_SIZE);
           }
@@ -442,24 +442,24 @@ public class LogFile {
 
         // all xactions finish with a pointer
         logNew.writeLong(newStart);
-        randomAccessFile.readLong();
+        raf.readLong();
 
       } catch (EOFException e) {
         break;
       }
     }
 
-    Debug.log("TRUNCATING LOG;  WAS " + randomAccessFile.length() + " BYTES ; NEW START : " + minLogRecord
-        + " NEW LENGTH: " + (randomAccessFile.length() - minLogRecord));
+    Debug.log("TRUNCATING LOG;  WAS " + raf.length() + " BYTES ; NEW START : " + minLogRecord
+        + " NEW LENGTH: " + (raf.length() - minLogRecord));
 
-    randomAccessFile.close();
+    raf.close();
     logFile.delete();
     newFile.renameTo(logFile);
-    randomAccessFile = new RandomAccessFile(logFile, "rw");
-    randomAccessFile.seek(randomAccessFile.length());
+    raf = new RandomAccessFile(logFile, "rw");
+    raf.seek(raf.length());
     newFile.delete();
 
-    currentOffset = randomAccessFile.getFilePointer();
+    currentOffset = raf.getFilePointer();
     // print();
   }
 
@@ -487,7 +487,7 @@ public class LogFile {
   public synchronized void shutdown() {
     try {
       logCheckpoint(); // simple way to shutdown is to write a checkpoint record
-      randomAccessFile.close();
+      raf.close();
     } catch (IOException e) {
       System.out.println("ERROR SHUTTING DOWN -- IGNORING.");
       e.printStackTrace();
@@ -499,7 +499,7 @@ public class LogFile {
    * transactions are installed and that the updates of uncommitted transactions
    * are not installed.
    */
-  public void recover() {
+  public void recover() throws IOException {
     synchronized (Database.getBufferPool()) {
       synchronized (this) {
         recoveryUndecided = false;
@@ -509,12 +509,12 @@ public class LogFile {
   }
 
   /** Print out a human readable represenation of the log */
-  public void print() {
+  public void print() throws IOException {
     // some code goes here
   }
 
   public synchronized void force() throws IOException {
-    randomAccessFile.getChannel().force(true);
+    raf.getChannel().force(true);
   }
 
 }

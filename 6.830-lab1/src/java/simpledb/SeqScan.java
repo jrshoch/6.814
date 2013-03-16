@@ -34,7 +34,7 @@ public class SeqScan implements DbIterator {
     this.transactionId = tid;
     reset(tableId, tableAlias);
   }
-  
+
   private static TupleDesc getPrefixedTupleDesc(int tableId, String tableAlias) {
     String tableAliasRepresentation = representPossiblyNullString(tableAlias);
     TupleDesc underlyingTupleDesc = Database.getCatalog().getTupleDesc(tableId);
@@ -73,12 +73,12 @@ public class SeqScan implements DbIterator {
    * Reset the tableid, and tableAlias of this operator.
    * 
    * @param tid the table to scan.
-   * @param alias the alias of this table (needed by the parser); the
-   *          returned tupleDesc should have fields with name
-   *          tableAlias.fieldName (note: this class is not responsible for
-   *          handling a case where tableAlias or fieldName are null. It
-   *          shouldn't crash if they are, but the resulting name can be
-   *          null.fieldName, tableAlias.null, or null.null).
+   * @param alias the alias of this table (needed by the parser); the returned
+   *          tupleDesc should have fields with name tableAlias.fieldName (note:
+   *          this class is not responsible for handling a case where tableAlias
+   *          or fieldName are null. It shouldn't crash if they are, but the
+   *          resulting name can be null.fieldName, tableAlias.null, or
+   *          null.null).
    */
   public void reset(int tid, String alias) {
     this.tableId = tid;

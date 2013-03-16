@@ -1,6 +1,5 @@
 package simpledb;
 
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -34,19 +33,13 @@ public class HeapFileIterator implements DbFileIterator {
     rewind();
   }
 
-  private Iterator<Tuple> getPageIterator(int pageNumber) throws DbException,
-      TransactionAbortedException {
+  private Iterator<Tuple> getPageIterator(int pageNumber) throws DbException {
     PageId pageId = new HeapPageId(tableId, pageNumber);
-    try {
-      Page page = Database.getBufferPool().getPage(transactionId, pageId, Permissions.READ_ONLY);
-      return ((HeapPage) page).iterator();
-    } catch (IOException e) {
-      e.printStackTrace();
-      throw new DbException("IOException caught while acquiring page from BufferPool."); 
-    }
+    Page page = Database.getBufferPool().getPage(transactionId, pageId, Permissions.READ_ONLY);
+    return ((HeapPage) page).iterator();
   }
 
-  private void incrementPageNumber() throws DbException, TransactionAbortedException {
+  private void incrementPageNumber() throws DbException {
     currentPageNumber++;
     if (currentPageNumber >= numberOfPages) {
       return;
@@ -54,7 +47,7 @@ public class HeapFileIterator implements DbFileIterator {
     currentPageIterator = getPageIterator(currentPageNumber);
   }
 
-  private Tuple getNext() throws DbException, TransactionAbortedException {
+  private Tuple getNext() throws DbException {
     while (currentPageNumber < numberOfPages) {
       if (currentPageIterator.hasNext()) {
         return currentPageIterator.next();

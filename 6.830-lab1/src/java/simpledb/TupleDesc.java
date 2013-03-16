@@ -39,7 +39,7 @@ public class TupleDesc implements Serializable {
     public String toString() {
       return fieldName + "(" + fieldType + ")";
     }
-    
+
     public static List<TDItem> getListFrom(Type[] typeAr, String[] fieldAr) {
       List<TDItem> list = new ArrayList<TDItem>();
       for (int i = 0; i < typeAr.length; i++) {
@@ -87,7 +87,7 @@ public class TupleDesc implements Serializable {
   }
 
   private static final long serialVersionUID = 1L;
-  
+
   private final List<TDItem> tdItems;
   private final Map<String, Integer> nameToIdMap;
   private final int size;
@@ -105,7 +105,7 @@ public class TupleDesc implements Serializable {
   public TupleDesc(Type[] typeAr, String[] fieldAr) {
     this(TDItem.getListFrom(typeAr, fieldAr));
   }
-  
+
   private TupleDesc(List<TDItem> tdItems) {
     this.tdItems = new ArrayList<TDItem>(tdItems);
     this.nameToIdMap = new HashMap<String, Integer>();
@@ -192,7 +192,7 @@ public class TupleDesc implements Serializable {
   public int getSize() {
     return size;
   }
-  
+
   /**
    * Merge two TupleDescs into one, with td1.numFields + td2.numFields fields,
    * with the first td1.numFields coming from td1 and the remaining from td2.
@@ -227,8 +227,15 @@ public class TupleDesc implements Serializable {
     if (tdItems == null) {
       if (other.tdItems != null)
         return false;
-    } else if (!tdItems.equals(other.tdItems))
-      return false;
+    } else {
+      int nItems = tdItems.size();
+      if (other.tdItems.size() != nItems)
+        return false;
+      for (int i = 0; i < nItems; i++) {
+        if (tdItems.get(i).fieldType != other.tdItems.get(i).fieldType)
+          return false;
+      }
+    }
     return true;
   }
 
@@ -251,7 +258,7 @@ public class TupleDesc implements Serializable {
   public String toString() {
     return stringFormat;
   }
-  
+
   private static String getStringFormat(List<TDItem> tdItems) {
     String result = "";
     for (TDItem tdItem : tdItems) {

@@ -44,7 +44,7 @@ public interface DbFile {
       TransactionAbortedException;
 
   /**
-   * Removes the specifed tuple from the file on behalf of the specified
+   * Removes the specified tuple from the file on behalf of the specified
    * transaction. This method will acquire a lock on the affected pages of the
    * file, and may block until the lock can be acquired.
    * 

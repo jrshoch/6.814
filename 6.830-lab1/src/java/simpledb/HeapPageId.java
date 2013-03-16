@@ -2,12 +2,12 @@ package simpledb;
 
 /** Unique identifier for HeapPage objects. */
 public class HeapPageId implements PageId {
-  
+
   private static final int MAX_PAGES_PER_TABLE = 1048573; // Prime near 2 ** 20
 
   private final int tableId;
   private final int pageNumber;
-  
+
   /**
    * Constructor. Create a page id structure for a specific page of a specific
    * table.

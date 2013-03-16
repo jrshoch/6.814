@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,10 +26,10 @@ public class BufferPool {
    * instead.
    */
   public static final int DEFAULT_PAGES = 50;
-  
+
   private final int maxPages;
   private int currentPages;
-  
+
   private final Map<PageId, Page> pageIdToPages;
 
   /**
@@ -59,13 +60,12 @@ public class BufferPool {
    * @param pid the ID of the requested page
    * @param perm the requested permissions on the page
    */
-  public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-      throws TransactionAbortedException, DbException, IOException {
+  public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws DbException {
     if (pageIdToPages.containsKey(pid)) {
       return pageIdToPages.get(pid);
     }
     if (currentPages == maxPages) {
-      throw new DbException("BufferPool hit page limit while retrieving page id: " + pid);
+      evictPage();
     }
     int tableId = pid.getTableId();
     Catalog catalog = Database.getCatalog();
@@ -133,8 +133,11 @@ public class BufferPool {
    */
   public void insertTuple(TransactionId tid, int tableId, Tuple t) throws DbException, IOException,
       TransactionAbortedException {
-    // some code goes here
-    // not necessary for lab1
+    HeapFile heapFile = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+    List<Page> dirtiedPages = heapFile.insertTuple(tid, t);
+    for (Page dirtiedPage : dirtiedPages) {
+      dirtiedPage.markDirty(true, tid);
+    }
   }
 
   /**
@@ -152,8 +155,10 @@ public class BufferPool {
    */
   public void deleteTuple(TransactionId tid, Tuple t) throws DbException,
       TransactionAbortedException {
-    // some code goes here
-    // not necessary for lab1
+    HeapFile heapFile = (HeapFile) Database.getCatalog().getDatabaseFile(
+        t.getRecordId().getPageId().getTableId());
+    Page dirtiedPage = heapFile.deleteTuple(tid, t);
+    dirtiedPage.markDirty(true, tid);
   }
 
   /**
@@ -162,9 +167,9 @@ public class BufferPool {
    * mode.
    */
   public synchronized void flushAllPages() throws IOException {
-    // some code goes here
-    // not necessary for lab1
-
+    for (PageId pageId : pageIdToPages.keySet()) {
+      flushPage(pageId);
+    }
   }
 
   /**
@@ -183,16 +188,26 @@ public class BufferPool {
    * @param pid an ID indicating the page to flush
    */
   private synchronized void flushPage(PageId pid) throws IOException {
-    // some code goes here
-    // not necessary for lab1
+    if (pageIdToPages.containsKey(pid)) {
+      Page page = pageIdToPages.get(pid);
+      if (page.isDirty() != null) {
+        Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+        page.markDirty(false, null);
+      }
+    }
   }
 
   /**
    * Write all pages of the specified transaction to disk.
    */
   public synchronized void flushPages(TransactionId tid) throws IOException {
-    // some code goes here
-    // not necessary for lab1|lab2
+    for (PageId pageId : pageIdToPages.keySet()) {
+      Page page = pageIdToPages.get(pageId);
+      if (page.isDirty() == tid) {
+        Database.getCatalog().getDatabaseFile(pageId.getTableId()).writePage(page);
+        page.markDirty(false, null);
+      }
+    }
   }
 
   /**
@@ -200,8 +215,16 @@ public class BufferPool {
    * dirty pages are updated on disk.
    */
   private synchronized void evictPage() throws DbException {
-    // some code goes here
-    // not necessary for lab1
+    PageId pageId = pageIdToPages.keySet().iterator().next();
+    if (pageId == null) return;
+    try {
+      flushPage(pageId);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw new DbException("IOException while flushing page during eviction.");
+    }
+    pageIdToPages.remove(pageId);
+    currentPages--;
   }
 
 }

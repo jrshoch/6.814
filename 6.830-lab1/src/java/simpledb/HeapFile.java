@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -21,7 +22,7 @@ public class HeapFile implements DbFile {
 
   private final File backingFile;
   private final TupleDesc tupleDesc;
-  private final int numberOfPages;
+  private int numberOfPages;
 
   /**
    * Constructs a heap file backed by the specified file.
@@ -72,9 +73,11 @@ public class HeapFile implements DbFile {
   public Page readPage(PageId pid) {
     int offset = BufferPool.getPageSize() * pid.pageNumber();
     try {
-      FileChannel fileChannel = new FileInputStream(backingFile).getChannel();
+      FileInputStream fileInputStream = new FileInputStream(backingFile);
+      FileChannel fileChannel = fileInputStream.getChannel();
       ByteBuffer readData = ByteBuffer.allocate(BufferPool.getPageSize());
       int numberOfBytesRead = fileChannel.read(readData, offset);
+      fileInputStream.close();
       if (numberOfBytesRead == BufferPool.getPageSize()) {
         return new HeapPage(pid, readData.array());
       }
@@ -87,8 +90,19 @@ public class HeapFile implements DbFile {
   // see DbFile.java for javadocs
   @Override
   public void writePage(Page page) throws IOException {
-    // some code goes here
-    // not necessary for lab1
+    int offset = BufferPool.getPageSize() * page.getId().pageNumber();
+    try {
+      FileOutputStream fileOutputStream = new FileOutputStream(backingFile);
+      FileChannel fileChannel = fileOutputStream.getChannel();
+      ByteBuffer writeData = ByteBuffer.wrap(page.getPageData());
+      int numberOfBytesWritten = fileChannel.write(writeData, offset);
+      fileOutputStream.close();
+      if (numberOfBytesWritten != BufferPool.getPageSize()) {
+        throw new RuntimeException("Did not read entire page successfully.");
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -102,18 +116,42 @@ public class HeapFile implements DbFile {
   @Override
   public ArrayList<Page> insertTuple(TransactionId tid, Tuple t) throws DbException, IOException,
       TransactionAbortedException {
-    // some code goes here
-    return null;
-    // not necessary for lab1
+    HeapPage insertedPage = null;
+    for (int pageNumber = 0; pageNumber < numberOfPages; pageNumber++) {
+      HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid,
+          new HeapPageId(getId(), pageNumber), Permissions.READ_WRITE);
+      int numberOfEmptySlots = heapPage.getNumEmptySlots();
+      if (numberOfEmptySlots > 0) {
+        heapPage.insertTuple(t);
+        insertedPage = heapPage;
+        break;
+      }
+    }
+    if (insertedPage == null) {
+      HeapPage newHeapPage = new HeapPage(new HeapPageId(getId(), numberOfPages),
+          HeapPage.createEmptyPageData());
+      numberOfPages++;
+      newHeapPage.insertTuple(t);
+      writePage(newHeapPage);
+      insertedPage = newHeapPage;
+    }
+    ArrayList<Page> affectedPages = new ArrayList<Page>();
+    affectedPages.add(insertedPage);
+    return affectedPages;
   }
 
   // see DbFile.java for javadocs
   @Override
   public Page deleteTuple(TransactionId tid, Tuple t) throws DbException,
       TransactionAbortedException {
-    // some code goes here
-    return null;
-    // not necessary for lab1
+    PageId pageId = t.getRecordId().getPageId();
+    if (pageId == null || pageId.getTableId() != getId()) {
+      throw new DbException("File cannot delete tuple that it does not contain.");
+    }
+    HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId,
+        Permissions.READ_WRITE);
+    heapPage.deleteTuple(t);
+    return heapPage;
   }
 
   // see DbFile.java for javadocs

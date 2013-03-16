@@ -5,7 +5,7 @@ package simpledb;
  * specific table.
  */
 public class RecordId {
-  
+
   private final PageId pageId;
   private final int tupleNumber;
 
@@ -26,7 +26,7 @@ public class RecordId {
   public int tupleno() {
     return this.tupleNumber;
   }
-  
+
   /**
    * @return the page id this RecordId references.
    */
