@@ -31,6 +31,8 @@ public class BufferPool {
   private int currentPages;
 
   private final Map<PageId, Page> pageIdToPages;
+  
+  private final LockManager lockManager;
 
   /**
    * Creates a BufferPool that caches up to numPages pages.
@@ -40,6 +42,7 @@ public class BufferPool {
   public BufferPool(int numPages) {
     this.maxPages = numPages;
     this.pageIdToPages = new HashMap<PageId, Page>();
+    this.lockManager = LockManager.create();
   }
 
   public static int getPageSize() {
@@ -61,6 +64,7 @@ public class BufferPool {
    * @param perm the requested permissions on the page
    */
   public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws DbException {
+    lockManager.acquireLock(tid, pid, perm);
     if (pageIdToPages.containsKey(pid)) {
       return pageIdToPages.get(pid);
     }
@@ -85,8 +89,7 @@ public class BufferPool {
    * @param pid the ID of the page to unlock
    */
   public void releasePage(TransactionId tid, PageId pid) {
-    // some code goes here
-    // not necessary for lab1|lab2
+    lockManager.releasePage(tid, pid);
   }
 
   /**
@@ -101,9 +104,7 @@ public class BufferPool {
 
   /** Return true if the specified transaction has a lock on the specified page */
   public boolean holdsLock(TransactionId tid, PageId p) {
-    // some code goes here
-    // not necessary for lab1|lab2
-    return false;
+    return lockManager.holdsLock(tid, p);
   }
 
   /**
