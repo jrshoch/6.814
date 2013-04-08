@@ -35,6 +35,7 @@ public class LogicalJoinNode {
   public Predicate.Op p;
 
   public LogicalJoinNode() {
+    // Default constructor, does nothing
   }
 
   public LogicalJoinNode(String table1, String table2, String joinField1, String joinField2,

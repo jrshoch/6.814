@@ -69,7 +69,10 @@ public class LockingTest extends TestUtil.CreateHeapFile {
       TransactionId tid2, PageId pid2, Permissions perm2,
       boolean expected) throws Exception {
 
+    System.out.println(tid1 + " is getting page " + pid1 + " with permissions " + perm1);
     bp.getPage(tid1, pid1, perm1);
+    System.out.println(tid1 + " got " + pid1 + " with permissions " + perm1);
+    System.out.println(tid2 + " is getting page " + pid2 + " with permissions " + perm2);
     grabLock(tid2, pid2, perm2, expected);
   }
 

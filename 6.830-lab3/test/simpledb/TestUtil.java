@@ -359,9 +359,13 @@ public class TestUtil {
     @Override
     public void run() {
       try {
+        System.out.println("Started get page.");
         Database.getBufferPool().getPage(tid, pid, perm);
+        System.out.println("Completed get page.");
         synchronized (alock) {
+          System.out.println("setting acquired to true.");
           acquired = true;
+          System.out.println("set acquired to true.");
         }
       } catch (Exception e) {
         e.printStackTrace();
@@ -382,6 +386,7 @@ public class TestUtil {
      */
     public boolean acquired() {
       synchronized (alock) {
+        System.out.println("returning acquired: " + acquired + ".");
         return acquired;
       }
     }

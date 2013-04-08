@@ -22,7 +22,7 @@ public class HeapFile implements DbFile {
   private final File backingFile;
   private final RandomAccessFile accessFile;
   private final TupleDesc tupleDesc;
-  private AtomicInteger numberOfPages;
+  private final AtomicInteger numberOfPages;
 
   /**
    * Constructs a heap file backed by the specified file.
@@ -85,7 +85,6 @@ public class HeapFile implements DbFile {
       if (numberOfBytesRead == BufferPool.getPageSize()) {
         return new HeapPage(pid, readData);
       }
-      System.out.println("numberOfBytesRead: " + numberOfBytesRead + ", offest: " + offset + ", backingFile.size(): " + backingFile.length() + ", page size: " + BufferPool.getPageSize() + ", page number; " + pid.pageNumber());
       throw new RuntimeException("Did not read entire page successfully.");
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -97,11 +96,9 @@ public class HeapFile implements DbFile {
   public void writePage(Page page) throws IOException {
     int pageSize = BufferPool.getPageSize();
     int offset = pageSize * page.getId().pageNumber();
-    System.out.println("page size before write: " + backingFile.length());
     try {
       accessFile.seek(offset);
       accessFile.write(page.getPageData());
-      System.out.println("Wrote to page number " + page.getId().pageNumber() + " at offset: " + offset + " to create resulting file size: " + backingFile.length());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

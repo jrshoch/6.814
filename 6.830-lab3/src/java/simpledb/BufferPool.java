@@ -2,8 +2,10 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from disk.
@@ -28,7 +30,7 @@ public class BufferPool {
   public static final int DEFAULT_PAGES = 50;
 
   private final int maxPages;
-  private int currentPages;
+  private final AtomicInteger currentPages;
 
   private final Map<PageId, Page> pageIdToPages;
   
@@ -43,6 +45,7 @@ public class BufferPool {
     this.maxPages = numPages;
     this.pageIdToPages = new HashMap<PageId, Page>();
     this.lockManager = LockManager.create();
+    currentPages = new AtomicInteger(0);
   }
 
   public static int getPageSize() {
@@ -62,13 +65,15 @@ public class BufferPool {
    * @param tid the ID of the transaction requesting the page
    * @param pid the ID of the requested page
    * @param perm the requested permissions on the page
+   * @throws DbException 
+   * @throws TransactionAbortedException 
    */
-  public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws DbException {
+  public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws DbException, TransactionAbortedException {
     lockManager.acquireLock(tid, pid, perm);
     if (pageIdToPages.containsKey(pid)) {
       return pageIdToPages.get(pid);
     }
-    if (currentPages == maxPages) {
+    if (currentPages.get() == maxPages) {
       evictPage();
     }
     int tableId = pid.getTableId();
@@ -76,7 +81,7 @@ public class BufferPool {
     DbFile dbFile = catalog.getDatabaseFile(tableId);
     Page page = dbFile.readPage(pid);
     pageIdToPages.put(pid, page);
-    currentPages++;
+    currentPages.incrementAndGet();
     return page;
   }
 
@@ -98,8 +103,7 @@ public class BufferPool {
    * @param tid the ID of the transaction requesting the unlock
    */
   public void transactionComplete(TransactionId tid) throws IOException {
-    // some code goes here
-    // not necessary for lab1|lab2
+    transactionComplete(tid, true);
   }
 
   /** Return true if the specified transaction has a lock on the specified page */
@@ -115,8 +119,25 @@ public class BufferPool {
    * @param commit a flag indicating whether we should commit or abort
    */
   public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
-    // some code goes here
-    // not necessary for lab1|lab2
+    if (commit) {
+      for (PageId pageId : pageIdToPages.keySet()) {
+        if (tid.equals(pageIdToPages.get(pageId).isDirty())) {
+          flushPage(pageId);
+        }
+      }
+    } else {
+      for (PageId pageId : pageIdToPages.keySet()) {
+        Page page = pageIdToPages.get(pageId);
+        if (tid.equals(page.isDirty())) {
+          pageIdToPages.put(pageId, page.getBeforeImage());
+          page.markDirty(false, null);
+        }
+      }
+    }
+    lockManager.releasePages(tid);
+    // if commit, flush dirty pages associated with transaction
+    // if !commit, restore dirty pages associated with transaction to previous state
+    // release all locks (and other state?  don't think there is any)
   }
 
   /**
@@ -210,14 +231,27 @@ public class BufferPool {
       }
     }
   }
+  
+  private boolean isDirty(PageId pageId) {
+    return pageIdToPages.get(pageId).isDirty() != null;
+  }
 
   /**
    * Discards a page from the buffer pool. Flushes the page to disk to ensure
    * dirty pages are updated on disk.
    */
   private synchronized void evictPage() throws DbException {
-    PageId pageId = pageIdToPages.keySet().iterator().next();
-    if (pageId == null) return;
+    Iterator<PageId> pageIdIterator = pageIdToPages.keySet().iterator();
+    PageId pageId = null;
+    while (pageIdIterator.hasNext()) {
+      pageId = pageIdIterator.next();
+      if (!isDirty(pageId)) {
+        break;
+      }
+    }
+    if (pageId == null || isDirty(pageId)) {
+      throw new DbException("All pages in BufferPool are dirty and therefore none can be evicted.");
+    }
     try {
       flushPage(pageId);
     } catch (IOException e) {
@@ -225,7 +259,7 @@ public class BufferPool {
       throw new DbException("IOException while flushing page during eviction.");
     }
     pageIdToPages.remove(pageId);
-    currentPages--;
+    currentPages.decrementAndGet();
   }
 
 }
