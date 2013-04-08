@@ -1,0 +1,67 @@
+Lab 3 Writeup
+Jason Hoch
+4/8/2013
+
+Describe any design decisions you made
+
+I decided to write a LockManager class that handled all locking outside of the
+BufferPool.  A single LockManager is held and delegated to by the BufferPool.
+The LockManager keeps track of two maps: a map of PageIds to a list of
+TransactionIds that have a shared lock on a page, and a map of PageIds to single
+TransactionIds that have an exclusive lock on a page.  A ConcurrentMap of locks
+by PageId are used when updating these mappings of PageIds to TransactionIds;
+"synchronized" blocks on these Java locks ensure that conflicting updates to the
+maps do not occur.  For convenience, the LockManager keeps a map of
+TransactionIds to the PageIds whose locks they possess so that upon transaction
+completion the locks may be released efficiently.  Isolating the careful locking
+protocol in a separate class separated concerns and made for manageable writing
+of the lab 3 code.  If anything, LockManager grew bloated by the end of the lab
+and should be further broken down.
+
+A few other variables needed to become thread-safe, namely HeapFile's and
+BufferPool's counters of how many pages they have.  This was done with the
+simple use of AtomicIntegers.
+
+HeapFile was edited to only request read access of pages when searching for an
+empty tuple slot, only requesting read-write access if an empty slot is found.
+If the empty slot is not found, the page is actually released via the
+"dangerous" releasePage(TransactionId, PageId) call, which is safe here because
+the empty tuple slot search code makes no changes, and the foregoing of two-
+phase locking isn't going to increase deadlock because no locks are acquired
+between the acquisition and release of these single, read-only lock.
+
+Transactions abort themselves if they are waiting on a lock in such a way that
+creates deadlock.  Whenever a lock acquisition request finds itself in conflict
+with another transaction already holding the lock, a ConcurrentMap storing
+transaction lock acquisition dependencies in LockManager is updated.  Upon
+update a quick depth-first search is done over the graph starting from every
+node looking for cycles; if a cycle is found then a TransactionAbortedException
+is thrown.  The search caches results so that every node is only searched once
+(it's an O(E+V), i.e. linear, search) so that the frequest searches that happen
+during heavy lock contention will slow down the LockManager as minimally as
+possible.
+
+Discuss and justify any changes you made to the API
+
+No API changes were made - I reintroduced "throws TransactionAbortedException"
+to method statements where necessary.  I changed the .equals() method of
+TransactionId to the Eclipse auto-generated version, and the .hashcode() method
+correspondingly, as the old method failed on null input.
+
+Describe any missing or incomplete elements of your code
+
+The code satisfies all of the desired features, without the extra credit
+tuple-level locking.
+
+Describe how long you spent on the lab, and whether there was anything you
+found particularly difficult or confusing
+
+I thought this lab was pretty straightforward.  As the problems have gotten
+more complex, there was more debugging involved, but nothing too painful.
+The worst bug I had involved the way I was writing to files - turns out using
+a FileChannel to write a page in a file actually erases everything after the
+write, a bug which did not show up in the tests for labs 1 and 2.  This
+actually caused a nondeterministic bug in the set up for the locking tests
+(success depended on the last of three pages being written last), which I
+immediately attributed to a race condition in my locking code, which in the end
+turned out to be correct.
