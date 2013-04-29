@@ -1,15 +1,24 @@
 package simpledb;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * A class to represent a fixed-width histogram over a single integer-based
+ * A class to represent a fixed-width histogram over a single Long-based
  * field.
  */
 public class IntHistogram {
 
+  private final int min;
+  private final int numBuckets;
+  private final double bucketWidth;
+  private int numberOfValues;
+  private final Map<Long, Long> bucketSizes;
+
   /**
    * Create a new IntHistogram.
    * 
-   * This IntHistogram should maintain a histogram of integer values that it
+   * This IntHistogram should maintain a histogram of Long values that it
    * receives. It should split the histogram into "buckets" buckets.
    * 
    * The values that are being histogrammed will be provided one-at-a-time
@@ -21,13 +30,20 @@ public class IntHistogram {
    * list.
    * 
    * @param buckets The number of buckets to split the input value into.
-   * @param min The minimum integer value that will ever be passed to this class
+   * @param min The minimum Long value that will ever be passed to this class
    *          for histogramming
-   * @param max The maximum integer value that will ever be passed to this class
+   * @param max The maximum Long value that will ever be passed to this class
    *          for histogramming
    */
   public IntHistogram(int buckets, int min, int max) {
-    // some code goes here
+    this.min = min;
+    this.numBuckets = buckets;
+    this.bucketWidth = (max - min + 0.0) / numBuckets;
+    this.numberOfValues = 0;
+    bucketSizes = new HashMap<Long, Long>();
+    for (int i = 0; i < numBuckets; i++) {
+      bucketSizes.put(Long.valueOf(i), Long.valueOf(0));
+    }
   }
 
   /**
@@ -36,7 +52,24 @@ public class IntHistogram {
    * @param v Value to add to the histogram
    */
   public void addValue(int v) {
-    // some code goes here
+    increment(getBucketIndex(v));
+    numberOfValues++;
+  }
+
+  private void increment(Long bucketIndex) {
+    bucketSizes.put(bucketIndex, Long.valueOf(bucketSizes.get(bucketIndex).longValue() + 1));
+  }
+
+  private Long getBucketIndex(int v) {
+    return Long.valueOf(Math.round((v - min) / bucketWidth));
+  }
+
+  private long getBucketMin(int v) {
+    return ((v - min) / bucketWidth) * bucketWidth + min;
+  }
+
+  private long getApproximateNumberOfLesserValuesInBucket(int v) {
+    return (bucketSizes.get(getBucketIndex(v)).longValue() * v - getBucketMin(v)) / bucketWidth;
   }
 
   /**
@@ -51,9 +84,34 @@ public class IntHistogram {
    * @return Predicted selectivity of this particular operator and value
    */
   public double estimateSelectivity(Predicate.Op op, int v) {
-
-    // some code goes here
-    return -1.0;
+    Long bucketIndex = getBucketIndex(v);
+    int equalValuesEstimate = bucketSizes.get(bucketIndex).longValue() / bucketWidth;
+    int sufficientValuesEstimate = 0;
+    switch (op) {
+    case GREATER_THAN_OR_EQ:
+    case LESS_THAN_OR_EQ:
+    case EQUALS:
+      sufficientValuesEstimate += equalValuesEstimate;
+      break;
+    case GREATER_THAN:
+      sufficientValuesEstimate += bucketSizes.get(bucketIndex).longValue() - getApproximateNumberOfLesserValuesInBucket(v);
+      for (int i = bucketIndex.longValue() + 1; i < numBuckets; i++) {
+        sufficientValuesEstimate += bucketSizes.get(Long.valueOf(i)).longValue();
+      }
+      break;
+    case LESS_THAN:
+      sufficientValuesEstimate += getApproximateNumberOfLesserValuesInBucket(v);
+      for (int i = 0; i < bucketIndex.longValue(); i++) {
+        sufficientValuesEstimate += bucketSizes.get(Long.valueOf(i)).longValue();
+      }
+      break;
+    case NOT_EQUALS:
+      sufficientValuesEstimate += numberOfValues - equalValuesEstimate;
+      break;
+    case LIKE:
+      return 1.0;
+    }
+    return (sufficientValuesEstimate * 1.0) / numberOfValues;
   }
 
   /**

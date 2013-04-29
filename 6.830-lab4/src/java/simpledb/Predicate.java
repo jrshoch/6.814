@@ -48,7 +48,7 @@ public class Predicate implements Serializable {
   private final int field;
   private final Op op;
   private final Field operand;
-  
+
   /**
    * Constructor.
    * 
@@ -101,6 +101,7 @@ public class Predicate implements Serializable {
    */
   @Override
   public String toString() {
-    return "Predicate: {field: " + field + ", op: " + op.toString() + ", operand: " + operand.toString() + "}";
+    return "Predicate: {field: " + field + ", op: " + op.toString() + ", operand: "
+        + operand.toString() + "}";
   }
 }
