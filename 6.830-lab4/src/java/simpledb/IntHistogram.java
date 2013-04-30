@@ -1,19 +1,17 @@
 package simpledb;
 
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * A class to represent a fixed-width histogram over a single Long-based
- * field.
+ * A class to represent a fixed-width histogram over a single Long-based field.
  */
 public class IntHistogram {
 
   private final int min;
+  private final int max;
   private final int numBuckets;
   private final double bucketWidth;
   private int numberOfValues;
-  private final Map<Long, Long> bucketSizes;
+  private final long[] bucketSizes;
 
   /**
    * Create a new IntHistogram.
@@ -37,12 +35,13 @@ public class IntHistogram {
    */
   public IntHistogram(int buckets, int min, int max) {
     this.min = min;
+    this.max = max;
     this.numBuckets = buckets;
     this.bucketWidth = (max - min + 0.0) / numBuckets;
     this.numberOfValues = 0;
-    bucketSizes = new HashMap<Long, Long>();
+    bucketSizes = new long[numBuckets];
     for (int i = 0; i < numBuckets; i++) {
-      bucketSizes.put(Long.valueOf(i), Long.valueOf(0));
+      bucketSizes[i] = 0;
     }
   }
 
@@ -52,24 +51,25 @@ public class IntHistogram {
    * @param v Value to add to the histogram
    */
   public void addValue(int v) {
+//    System.out.println("min: " + min + ", max: " + (min + numBuckets * bucketWidth) + ", v: " + v);
     increment(getBucketIndex(v));
     numberOfValues++;
   }
 
-  private void increment(Long bucketIndex) {
-    bucketSizes.put(bucketIndex, Long.valueOf(bucketSizes.get(bucketIndex).longValue() + 1));
+  private void increment(int bucketIndex) {
+    bucketSizes[bucketIndex] = bucketSizes[bucketIndex] + 1;
   }
 
-  private Long getBucketIndex(int v) {
-    return Long.valueOf(Math.round((v - min) / bucketWidth));
+  private int getBucketIndex(int v) {
+    return Math.min((int) ((v - min) / bucketWidth), numBuckets - 1);
   }
 
   private long getBucketMin(int v) {
-    return ((v - min) / bucketWidth) * bucketWidth + min;
+    return ((long) (getBucketIndex(v) * bucketWidth + min)) + 1;
   }
 
   private long getApproximateNumberOfLesserValuesInBucket(int v) {
-    return (bucketSizes.get(getBucketIndex(v)).longValue() * v - getBucketMin(v)) / bucketWidth;
+    return ((long) ((bucketSizes[getBucketIndex(v)] * (v - getBucketMin(v))) / bucketWidth));
   }
 
   /**
@@ -84,25 +84,52 @@ public class IntHistogram {
    * @return Predicted selectivity of this particular operator and value
    */
   public double estimateSelectivity(Predicate.Op op, int v) {
-    Long bucketIndex = getBucketIndex(v);
-    int equalValuesEstimate = bucketSizes.get(bucketIndex).longValue() / bucketWidth;
-    int sufficientValuesEstimate = 0;
+    if (v <= min) {
+      switch (op) {
+      case GREATER_THAN:
+      case GREATER_THAN_OR_EQ:
+      case NOT_EQUALS:
+        return 1.0;
+      default:
+        return 0.0;
+      }
+    }
+    if (v >= max) {
+      switch (op) {
+      case LESS_THAN:
+      case LESS_THAN_OR_EQ:
+      case NOT_EQUALS:
+        return 1.0;
+      default:
+        return 0.0;
+      }
+    }
+    int bucketIndex = getBucketIndex(v);
+    long equalValuesEstimate = ((long) (bucketSizes[bucketIndex] / bucketWidth));
+    long sufficientValuesEstimate = 0;
     switch (op) {
     case GREATER_THAN_OR_EQ:
     case LESS_THAN_OR_EQ:
     case EQUALS:
       sufficientValuesEstimate += equalValuesEstimate;
       break;
+    default:
+      break;
+    }
+    switch (op) {
+    case GREATER_THAN_OR_EQ:
     case GREATER_THAN:
-      sufficientValuesEstimate += bucketSizes.get(bucketIndex).longValue() - getApproximateNumberOfLesserValuesInBucket(v);
-      for (int i = bucketIndex.longValue() + 1; i < numBuckets; i++) {
-        sufficientValuesEstimate += bucketSizes.get(Long.valueOf(i)).longValue();
+      sufficientValuesEstimate += bucketSizes[bucketIndex]
+          - getApproximateNumberOfLesserValuesInBucket(v);
+      for (int i = bucketIndex + 1; i < numBuckets; i++) {
+        sufficientValuesEstimate += bucketSizes[i];
       }
       break;
+    case LESS_THAN_OR_EQ:
     case LESS_THAN:
       sufficientValuesEstimate += getApproximateNumberOfLesserValuesInBucket(v);
-      for (int i = 0; i < bucketIndex.longValue(); i++) {
-        sufficientValuesEstimate += bucketSizes.get(Long.valueOf(i)).longValue();
+      for (int i = 0; i < bucketIndex; i++) {
+        sufficientValuesEstimate += bucketSizes[i];
       }
       break;
     case NOT_EQUALS:
@@ -110,6 +137,8 @@ public class IntHistogram {
       break;
     case LIKE:
       return 1.0;
+    default:
+      break;
     }
     return (sufficientValuesEstimate * 1.0) / numberOfValues;
   }

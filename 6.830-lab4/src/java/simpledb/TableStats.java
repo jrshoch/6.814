@@ -1,7 +1,9 @@
 package simpledb;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -65,6 +67,15 @@ public class TableStats {
    */
   static final int NUM_HIST_BINS = 100;
 
+  private final int tableId;
+  private final int ioCostPerPage;
+  private IntHistogram[] histograms;
+  private int[] histogramMins;
+  private int[] histogramMaxs;
+  private int numTuples;
+  private TupleDesc tupleDesc;
+  private final List<Integer> intFieldIndices;
+
   /**
    * Create a new TableStats object, that keeps track of statistics on each
    * column of a table
@@ -82,6 +93,58 @@ public class TableStats {
     // necessarily have to (for example) do everything
     // in a single scan of the table.
     // some code goes here
+    this.tableId = tableid;
+    this.ioCostPerPage = ioCostPerPage;
+    this.intFieldIndices = new ArrayList<Integer>();
+    try {
+      init();
+    } catch (DbException e) {
+      System.err.println("Exception while initializing TableStats.");
+    } catch (TransactionAbortedException e) {
+      System.err.println("Transaction aborted while initializing TableStats.");
+    }
+  }
+
+  private void init() throws DbException, TransactionAbortedException {
+    Catalog catalog = Database.getCatalog();
+    tupleDesc = catalog.getTupleDesc(tableId);
+    int numFields = tupleDesc.numFields();
+    histograms = new IntHistogram[numFields];
+    histogramMins = new int[numFields];
+    histogramMaxs = new int[numFields];
+    for (int i = 0; i < numFields; i++) {
+      if (tupleDesc.getFieldType(i) == Type.INT_TYPE) {
+        intFieldIndices.add(Integer.valueOf(i));
+        histogramMins[i] = Integer.MAX_VALUE;
+        histogramMaxs[i] = Integer.MIN_VALUE;
+      }
+    }
+    DbFileIterator tupleIterator = catalog.getDatabaseFile(tableId).iterator(new TransactionId());
+    tupleIterator.open();
+    numTuples = 0;
+    while (tupleIterator.hasNext()) {
+      Tuple tuple = tupleIterator.next();
+      numTuples++;
+      for (Integer index : intFieldIndices) {
+        int i = index.intValue();
+        int value = ((IntField) tuple.getField(i)).getValue();
+        histogramMins[i] = Math.min(histogramMins[i], value);
+        histogramMaxs[i] = Math.max(histogramMaxs[i], value);
+      }
+    }
+    for (Integer index : intFieldIndices) {
+      int i = index.intValue();
+      histograms[i] = new IntHistogram(NUM_HIST_BINS, histogramMins[i], histogramMaxs[i]);
+    }
+    tupleIterator.rewind();
+    while (tupleIterator.hasNext()) {
+      Tuple tuple = tupleIterator.next();
+      for (Integer index : intFieldIndices) {
+        int i = index.intValue();
+        histograms[i].addValue(((IntField) tuple.getField(i)).getValue());
+      }
+    }
+    tupleIterator.close();
   }
 
   /**
@@ -97,8 +160,9 @@ public class TableStats {
    * @return The estimated cost of scanning the table.
    */
   public double estimateScanCost() {
-    // some code goes here
-    return 0;
+    double tuplesPerPage = Math.floor(BufferPool.getPageSize() / tupleDesc.getSize());
+    double numPages = Math.floor((numTuples - 1) / tuplesPerPage) + 1;
+    return ioCostPerPage * numPages;
   }
 
   /**
@@ -110,8 +174,7 @@ public class TableStats {
    *         selectivityFactor
    */
   public int estimateTableCardinality(double selectivityFactor) {
-    // some code goes here
-    return 0;
+    return (int) (numTuples * selectivityFactor);
   }
 
   /**
@@ -139,7 +202,10 @@ public class TableStats {
    *         predicate
    */
   public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-    // some code goes here
+    if (constant.getType() == Type.INT_TYPE) {
+      int v = ((IntField) constant).getValue();
+      return histograms[field].estimateSelectivity(op, v);
+    }
     return 1.0;
   }
 
@@ -147,8 +213,7 @@ public class TableStats {
    * return the total number of tuples in this table
    * */
   public int totalTuples() {
-    // some code goes here
-    return 0;
+    return numTuples;
   }
 
 }
