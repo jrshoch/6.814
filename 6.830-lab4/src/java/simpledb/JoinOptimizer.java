@@ -136,9 +136,21 @@ public class JoinOptimizer {
       String table2Alias, String field1PureName, String field2PureName, int card1, int card2,
       boolean t1pkey, boolean t2pkey, Map<String, TableStats> stats,
       Map<String, Integer> tableAliasToId) {
-    int card = 1;
-    // some code goes here
-    return card <= 0 ? 1 : card;
+    switch(joinOp) {
+    case EQUALS:
+      if (t1pkey && t2pkey) {
+        return Math.min(card1, card2);
+      } else if (t1pkey && !t2pkey) {
+        return card2;
+      } else if (!t1pkey && t2pkey) {
+        return card1;
+      }
+      return Math.max(card1, card2);
+    case NOT_EQUALS:
+      return card1 * card2;
+    default:
+      return (int) 0.5 * card1 * card2;
+    }
   }
 
   /**
