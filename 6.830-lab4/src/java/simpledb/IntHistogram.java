@@ -5,6 +5,8 @@ package simpledb;
  * A class to represent a fixed-width histogram over a single Long-based field.
  */
 public class IntHistogram {
+  
+  private static final double EPSILON = 0.00001;
 
   private final int min;
   private final int max;
@@ -49,7 +51,7 @@ public class IntHistogram {
     bucketWidths[0] = 1;
     for (int i = 1; i < numBuckets; i++) {
       bucketCounts[i] = 0;
-      bucketMins[i] = ((int) (min + averageBucketWidth * i));
+      bucketMins[i] = ((int) (min + averageBucketWidth * (i + 1 - EPSILON)));
       if (bucketMins[i] > bucketMins[i - 1]) {
         bucketWidths[i] = 1;
         bucketWidths[i - 1] += bucketMins[i] - bucketMins[i - 1] - 1;
@@ -99,7 +101,7 @@ public class IntHistogram {
    * @return Predicted selectivity of this particular operator and value
    */
   public double estimateSelectivity(Predicate.Op op, int v) {
-    if (v <= min) {
+    if (v < min) {
       switch (op) {
       case GREATER_THAN:
       case GREATER_THAN_OR_EQ:
@@ -109,7 +111,7 @@ public class IntHistogram {
         return 0.0;
       }
     }
-    if (v >= max) {
+    if (v > max) {
       switch (op) {
       case LESS_THAN:
       case LESS_THAN_OR_EQ:
@@ -124,10 +126,12 @@ public class IntHistogram {
     long equalValuesEstimate = (bucketWidth == 0) ? 0 : bucketCounts[bucketIndex] / bucketWidth;
     long sufficientValuesEstimate = 0;
     switch (op) {
-    case GREATER_THAN_OR_EQ:
     case LESS_THAN_OR_EQ:
     case EQUALS:
       sufficientValuesEstimate += equalValuesEstimate;
+      break;
+    case GREATER_THAN:
+      sufficientValuesEstimate -= equalValuesEstimate;
       break;
     default:
       break;

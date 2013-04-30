@@ -465,6 +465,164 @@ public class JoinOptimizerTest extends SimpleDbTestBase {
   }
 
   /**
+   * Test a much-larger join ordering, to confirm that it executes in a
+   * reasonable amount of time
+   */
+  @Test(timeout = 60000)
+  public void reallyBigOrderJoinsTest() throws IOException, ParsingException {
+    final int IO_COST = 103;
+
+    JoinOptimizer j;
+    HashMap<String, TableStats> stats = new HashMap<String, TableStats>();
+    Vector<LogicalJoinNode> result;
+    Vector<LogicalJoinNode> nodes = new Vector<LogicalJoinNode>();
+    HashMap<String, Double> filterSelectivities = new HashMap<String, Double>();
+    TransactionId tid = new TransactionId();
+
+    // Create a large set of tables, and add tuples to the tables
+    ArrayList<ArrayList<Integer>> smallHeapFileTuples = new ArrayList<ArrayList<Integer>>();
+    HeapFile smallHeapFileA = SystemTestUtil.createRandomHeapFile(2, 100, Integer.MAX_VALUE, null,
+        smallHeapFileTuples, "c");
+    HeapFile smallHeapFileB = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileC = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileD = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileE = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileF = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileG = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileH = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileI = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileJ = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileK = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileL = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileM = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileN = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileO = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileP = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileQ = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileR = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileS = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+    HeapFile smallHeapFileT = createDuplicateHeapFile(smallHeapFileTuples, 2, "c");
+
+    ArrayList<ArrayList<Integer>> bigHeapFileTuples = new ArrayList<ArrayList<Integer>>();
+    for (int i = 0; i < 100000; i++) {
+      bigHeapFileTuples.add(smallHeapFileTuples.get(i % 100));
+    }
+    HeapFile bigHeapFile = createDuplicateHeapFile(bigHeapFileTuples, 2, "c");
+    Database.getCatalog().addTable(bigHeapFile, "bigTable");
+
+    // Add the tables to the database
+    Database.getCatalog().addTable(bigHeapFile, "bigTable");
+    Database.getCatalog().addTable(smallHeapFileA, "a");
+    Database.getCatalog().addTable(smallHeapFileB, "b");
+    Database.getCatalog().addTable(smallHeapFileC, "c");
+    Database.getCatalog().addTable(smallHeapFileD, "d");
+    Database.getCatalog().addTable(smallHeapFileE, "e");
+    Database.getCatalog().addTable(smallHeapFileF, "f");
+    Database.getCatalog().addTable(smallHeapFileG, "g");
+    Database.getCatalog().addTable(smallHeapFileH, "h");
+    Database.getCatalog().addTable(smallHeapFileI, "i");
+    Database.getCatalog().addTable(smallHeapFileJ, "j");
+    Database.getCatalog().addTable(smallHeapFileK, "k");
+    Database.getCatalog().addTable(smallHeapFileL, "l");
+    Database.getCatalog().addTable(smallHeapFileM, "m");
+    Database.getCatalog().addTable(smallHeapFileN, "n");
+    Database.getCatalog().addTable(smallHeapFileO, "o");
+    Database.getCatalog().addTable(smallHeapFileP, "p");
+    Database.getCatalog().addTable(smallHeapFileQ, "q");
+    Database.getCatalog().addTable(smallHeapFileR, "r");
+    Database.getCatalog().addTable(smallHeapFileS, "s");
+    Database.getCatalog().addTable(smallHeapFileT, "t");
+
+    // Come up with join statistics for the tables
+    stats.put("bigTable", new TableStats(bigHeapFile.getId(), IO_COST));
+    stats.put("a", new TableStats(smallHeapFileA.getId(), IO_COST));
+    stats.put("b", new TableStats(smallHeapFileB.getId(), IO_COST));
+    stats.put("c", new TableStats(smallHeapFileC.getId(), IO_COST));
+    stats.put("d", new TableStats(smallHeapFileD.getId(), IO_COST));
+    stats.put("e", new TableStats(smallHeapFileE.getId(), IO_COST));
+    stats.put("f", new TableStats(smallHeapFileF.getId(), IO_COST));
+    stats.put("g", new TableStats(smallHeapFileG.getId(), IO_COST));
+    stats.put("h", new TableStats(smallHeapFileH.getId(), IO_COST));
+    stats.put("i", new TableStats(smallHeapFileI.getId(), IO_COST));
+    stats.put("j", new TableStats(smallHeapFileJ.getId(), IO_COST));
+    stats.put("k", new TableStats(smallHeapFileK.getId(), IO_COST));
+    stats.put("l", new TableStats(smallHeapFileL.getId(), IO_COST));
+    stats.put("m", new TableStats(smallHeapFileM.getId(), IO_COST));
+    stats.put("n", new TableStats(smallHeapFileN.getId(), IO_COST));
+    stats.put("o", new TableStats(smallHeapFileO.getId(), IO_COST));
+    stats.put("p", new TableStats(smallHeapFileP.getId(), IO_COST));
+    stats.put("q", new TableStats(smallHeapFileQ.getId(), IO_COST));
+    stats.put("r", new TableStats(smallHeapFileR.getId(), IO_COST));
+    stats.put("s", new TableStats(smallHeapFileS.getId(), IO_COST));
+    stats.put("t", new TableStats(smallHeapFileT.getId(), IO_COST));
+
+    // Put in some filter selectivities
+    filterSelectivities.put("bigTable", Double.valueOf(1.0));
+    filterSelectivities.put("a", Double.valueOf(1.0));
+    filterSelectivities.put("b", Double.valueOf(1.0));
+    filterSelectivities.put("c", Double.valueOf(1.0));
+    filterSelectivities.put("d", Double.valueOf(1.0));
+    filterSelectivities.put("e", Double.valueOf(1.0));
+    filterSelectivities.put("f", Double.valueOf(1.0));
+    filterSelectivities.put("g", Double.valueOf(1.0));
+    filterSelectivities.put("h", Double.valueOf(1.0));
+    filterSelectivities.put("i", Double.valueOf(1.0));
+    filterSelectivities.put("j", Double.valueOf(1.0));
+    filterSelectivities.put("k", Double.valueOf(1.0));
+    filterSelectivities.put("l", Double.valueOf(1.0));
+    filterSelectivities.put("m", Double.valueOf(1.0));
+    filterSelectivities.put("n", Double.valueOf(1.0));
+    filterSelectivities.put("o", Double.valueOf(1.0));
+    filterSelectivities.put("p", Double.valueOf(1.0));
+    filterSelectivities.put("q", Double.valueOf(1.0));
+    filterSelectivities.put("r", Double.valueOf(1.0));
+    filterSelectivities.put("s", Double.valueOf(1.0));
+    filterSelectivities.put("t", Double.valueOf(1.0));
+
+    // Add the nodes to a collection for a query plan
+    nodes.add(new LogicalJoinNode("a", "b", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("b", "c", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("c", "d", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("d", "e", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("e", "f", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("f", "g", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("g", "h", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("h", "i", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("i", "j", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("j", "k", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("k", "l", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("l", "m", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("m", "n", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("n", "o", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("o", "p", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("p", "q", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("q", "r", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("r", "s", "c0", "c0", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("s", "t", "c1", "c1", Predicate.Op.EQUALS));
+    nodes.add(new LogicalJoinNode("t", "bigTable", "c0", "c0", Predicate.Op.EQUALS));
+
+    // Make sure we don't give the nodes to the optimizer in a nice order
+    Collections.shuffle(nodes);
+    Parser p = new Parser();
+    j = new JoinOptimizer(
+        p.generateLogicalPlan(
+            tid,
+            "SELECT COUNT(a.c0) FROM bigTable, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t WHERE bigTable.c0 = t.c0 AND a.c1 = b.c1 AND b.c0 = c.c0 AND c.c1 = d.c1 AND d.c0 = e.c0 AND e.c1 = f.c1 AND f.c0 = g.c0 AND g.c1 = h.c1 AND h.c0 = i.c0 AND i.c1 = j.c1 AND j.c0 = k.c0 AND k.c1 = l.c1 AND l.c0 = m.c0 AND m.c1 = n.c1 AND n.c0 = o.c0 AND o.c1 = p.c1 AND p.c0 = q.c0 AND q.c1 = r.c1 AND r.c0 = s.c0 AND s.c1 = t.c1;"),
+        nodes);
+
+    // Set the last boolean here to 'true' in order to have orderJoins()
+    // print out its logic
+    result = j.orderJoins(stats, filterSelectivities, false);
+
+    // If you're only re-ordering the join nodes,
+    // you shouldn't end up with more than you started with
+    Assert.assertEquals(result.size(), nodes.size());
+
+    // Make sure that "bigTable" is the outermost table in the join
+    Assert.assertEquals(result.get(result.size() - 1).t2Alias, "bigTable");
+  }
+
+  /**
    * Test a join ordering with an inequality, to make sure the inequality gets
    * put as the innermost join
    */

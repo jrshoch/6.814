@@ -315,8 +315,8 @@ public class JoinOptimizer {
     int numJoins = joins.size();
     for (int i = 1; i <= numJoins; i++) {
       Iterator<Set<LogicalJoinNode>> iterator = getSubsetIterator(joins, i);
-      Set<LogicalJoinNode> s = iterator.next();
-      for (; iterator.hasNext(); s = iterator.next()) {
+      while (iterator.hasNext()) {
+        Set<LogicalJoinNode> s = iterator.next();
         double bestCostSoFar = Double.MAX_VALUE;
         CostCard bestPlanSoFar = null;
         for (LogicalJoinNode a : s) {
