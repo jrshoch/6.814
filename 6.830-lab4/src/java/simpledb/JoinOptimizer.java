@@ -1,7 +1,10 @@
 package simpledb;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -188,6 +191,107 @@ public class JoinOptimizer {
 
     return els;
   }
+  
+  public <T> Iterator<Set<T>> getSubsetIterator(final Vector<T> v, int size) {
+    final SubsetBitsetIterator bitsetIterator = new SubsetBitsetIterator(v.size(), size);
+    return new Iterator<Set<T>>() {
+
+      @Override
+      public boolean hasNext() {
+        return bitsetIterator.hasNext();
+      }
+
+      @Override
+      public Set<T> next() {
+        List<Integer> bitset = bitsetIterator.next();
+        Set<T> subset = new HashSet<T>();
+        for (int i = 0; i < v.size(); i++) {
+          if (bitset.get(i) == SubsetBitsetIterator.ONE) {
+            subset.add(v.get(i));
+          }
+        }
+        return subset;
+      }
+
+      @Override
+      public void remove() {
+        throw new UnsupportedOperationException();
+      }
+      
+    };
+  }
+  
+  private static class SubsetBitsetIterator implements Iterator<List<Integer>> {
+    
+    private final int superSize;
+    private final List<Integer> next;
+    
+    protected static final Integer ZERO = Integer.valueOf(0);
+    protected static final Integer ONE = Integer.valueOf(1);
+    
+    protected SubsetBitsetIterator(int superSize, int subSize) {
+      this.superSize = superSize;
+      this.next = new ArrayList<Integer>();
+      for (int i = 0; i < superSize; i++) {
+        if (i < subSize) {
+          next.add(ONE);
+        } else {
+          next.add(ZERO);
+        }
+      }
+    }
+
+    @Override
+    public boolean hasNext() {
+      return !next.isEmpty();
+    }
+
+    @Override
+    public List<Integer> next() {
+      List<Integer> oldNext = new ArrayList<Integer>(next);
+      if (oldNext.get(superSize - 1) == ZERO) {
+        int i;
+        for (i  = superSize - 2; i >= 0; i--) {
+          if (oldNext.get(i) == ONE) {
+            break;
+          }
+        }
+        next.set(i, ZERO);
+        next.set(i + 1, ONE);
+      } else {
+        int numberOfTrailingOnes = 0;
+        int i;
+        for (i = superSize - 1; i >= 0; i--) {
+          if (oldNext.get(i) == ZERO) {
+            break;
+          }
+          next.set(i, ZERO);
+          numberOfTrailingOnes++;
+        }
+        for (i-- ; i >= 0; i--) {
+          if (oldNext.get(i) == ONE) {
+            break;
+          }
+        }
+        if (i < 0) {
+          next.clear();
+          return oldNext;
+        }
+        next.set(i, ZERO);
+        i++;
+        for (int j = 0; j < numberOfTrailingOnes + 1; j++) {
+          next.set(i + j, ONE);
+        }
+      }
+      return oldNext;
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+    
+  }
 
   /**
    * Compute a logical, reasonably efficient join on the specified tables. See
@@ -210,7 +314,9 @@ public class JoinOptimizer {
     PlanCache pc = new PlanCache();
     int numJoins = joins.size();
     for (int i = 1; i <= numJoins; i++) {
-      for (Set<LogicalJoinNode> s : enumerateSubsets(joins, i)) {
+      Iterator<Set<LogicalJoinNode>> iterator = getSubsetIterator(joins, i);
+      Set<LogicalJoinNode> s = iterator.next();
+      for (; iterator.hasNext(); s = iterator.next()) {
         double bestCostSoFar = Double.MAX_VALUE;
         CostCard bestPlanSoFar = null;
         for (LogicalJoinNode a : s) {
