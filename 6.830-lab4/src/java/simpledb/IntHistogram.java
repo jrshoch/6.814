@@ -9,9 +9,11 @@ public class IntHistogram {
   private final int min;
   private final int max;
   private final int numBuckets;
-  private final double bucketWidth;
-  private int numberOfValues;
-  private final long[] bucketSizes;
+  private final double averageBucketWidth;
+  private int totalCount;
+  private final long[] bucketCounts;
+  private final long[] bucketMins;
+  private final long[] bucketWidths;
 
   /**
    * Create a new IntHistogram.
@@ -35,13 +37,25 @@ public class IntHistogram {
    */
   public IntHistogram(int buckets, int min, int max) {
     this.min = min;
-    this.max = max;
+    this.max = max + 1;
     this.numBuckets = buckets;
-    this.bucketWidth = (max - min + 0.0) / numBuckets;
-    this.numberOfValues = 0;
-    bucketSizes = new long[numBuckets];
-    for (int i = 0; i < numBuckets; i++) {
-      bucketSizes[i] = 0;
+    this.totalCount = 0;
+    averageBucketWidth = (this.max - this.min + 0.0) / numBuckets;
+    bucketCounts = new long[numBuckets];
+    bucketMins = new long[numBuckets];
+    bucketWidths = new long[numBuckets];
+    bucketCounts[0] = 0;
+    bucketMins[0] = min;
+    bucketWidths[0] = 1;
+    for (int i = 1; i < numBuckets; i++) {
+      bucketCounts[i] = 0;
+      bucketMins[i] = ((int) (min + averageBucketWidth * i));
+      if (bucketMins[i] > bucketMins[i - 1]) {
+        bucketWidths[i] = 1;
+        bucketWidths[i - 1] += bucketMins[i] - bucketMins[i - 1] - 1;
+      } else {
+        bucketWidths[i] = 0;
+      }
     }
   }
 
@@ -51,25 +65,26 @@ public class IntHistogram {
    * @param v Value to add to the histogram
    */
   public void addValue(int v) {
-//    System.out.println("min: " + min + ", max: " + (min + numBuckets * bucketWidth) + ", v: " + v);
     increment(getBucketIndex(v));
-    numberOfValues++;
+    totalCount++;
   }
 
   private void increment(int bucketIndex) {
-    bucketSizes[bucketIndex] = bucketSizes[bucketIndex] + 1;
+    bucketCounts[bucketIndex] = bucketCounts[bucketIndex] + 1;
   }
 
   private int getBucketIndex(int v) {
-    return Math.min((int) ((v - min) / bucketWidth), numBuckets - 1);
-  }
-
-  private long getBucketMin(int v) {
-    return ((long) (getBucketIndex(v) * bucketWidth + min)) + 1;
+    return Math.min((int) ((v - min) / averageBucketWidth), numBuckets - 1);
   }
 
   private long getApproximateNumberOfLesserValuesInBucket(int v) {
-    return ((long) ((bucketSizes[getBucketIndex(v)] * (v - getBucketMin(v))) / bucketWidth));
+    int bucketIndex = getBucketIndex(v);
+    long bucketWidth = bucketWidths[bucketIndex];
+    if (bucketWidth == 0) {
+      return 0;
+    }
+    long bucketMin = bucketMins[bucketIndex];
+    return (bucketCounts[bucketIndex] * (v - bucketMin)) / (bucketWidth);
   }
 
   /**
@@ -105,7 +120,8 @@ public class IntHistogram {
       }
     }
     int bucketIndex = getBucketIndex(v);
-    long equalValuesEstimate = ((long) (bucketSizes[bucketIndex] / bucketWidth));
+    long bucketWidth = bucketWidths[bucketIndex];
+    long equalValuesEstimate = (bucketWidth == 0) ? 0 : bucketCounts[bucketIndex] / bucketWidth;
     long sufficientValuesEstimate = 0;
     switch (op) {
     case GREATER_THAN_OR_EQ:
@@ -119,28 +135,28 @@ public class IntHistogram {
     switch (op) {
     case GREATER_THAN_OR_EQ:
     case GREATER_THAN:
-      sufficientValuesEstimate += bucketSizes[bucketIndex]
+      sufficientValuesEstimate += bucketCounts[bucketIndex]
           - getApproximateNumberOfLesserValuesInBucket(v);
       for (int i = bucketIndex + 1; i < numBuckets; i++) {
-        sufficientValuesEstimate += bucketSizes[i];
+        sufficientValuesEstimate += bucketCounts[i];
       }
       break;
     case LESS_THAN_OR_EQ:
     case LESS_THAN:
       sufficientValuesEstimate += getApproximateNumberOfLesserValuesInBucket(v);
       for (int i = 0; i < bucketIndex; i++) {
-        sufficientValuesEstimate += bucketSizes[i];
+        sufficientValuesEstimate += bucketCounts[i];
       }
       break;
     case NOT_EQUALS:
-      sufficientValuesEstimate += numberOfValues - equalValuesEstimate;
+      sufficientValuesEstimate += totalCount - equalValuesEstimate;
       break;
     case LIKE:
       return 1.0;
     default:
       break;
     }
-    return (sufficientValuesEstimate * 1.0) / numberOfValues;
+    return (sufficientValuesEstimate * 1.0) / totalCount;
   }
 
   /**
