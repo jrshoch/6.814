@@ -29,7 +29,7 @@ public class HeapPage implements Page {
   private byte[] oldData;
 
   private final Byte oldDataLock = new Byte((byte) 0);
-  
+
   private boolean isDirty;
   private TransactionId dirtyingTransactionId;
 
@@ -75,7 +75,7 @@ public class HeapPage implements Page {
 
     this.isDirty = false;
     this.dirtyingTransactionId = null;
-    
+
     setBeforeImage();
   }
 
@@ -369,7 +369,7 @@ public class HeapPage implements Page {
   protected int getFirstUsedTupleIndex(int maxIndex) {
     return getNextUsedTupleIndex(0, maxIndex);
   }
-  
+
   protected int getFirstEmptyTupleIndex() {
     return getNextTupleIndexOfValue(0, numberOfTupleSlots, false);
   }
@@ -377,7 +377,7 @@ public class HeapPage implements Page {
   protected int getNextUsedTupleIndex(int startIndex, int maxIndex) {
     return getNextTupleIndexOfValue(startIndex, maxIndex, true);
   }
-  
+
   protected int getNextTupleIndexOfValue(int startIndex, int maxIndex, boolean value) {
     int nextTupleIndex = startIndex;
     while (nextTupleIndex < maxIndex && (isSlotUsed(nextTupleIndex) != value)) {
@@ -385,7 +385,7 @@ public class HeapPage implements Page {
     }
     return nextTupleIndex;
   }
-  
+
   protected Tuple[] getTuples() {
     return tuples;
   }

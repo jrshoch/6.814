@@ -2,9 +2,11 @@ package simpledb;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -33,7 +35,8 @@ public class BufferPool {
   private final AtomicInteger currentPages;
 
   private final Map<PageId, Page> pageIdToPages;
-  
+  private final Map<TransactionId, Set<PageId>> transactionsToDirtiedFlushedPages;
+
   private final LockManager lockManager;
 
   /**
@@ -44,6 +47,7 @@ public class BufferPool {
   public BufferPool(int numPages) {
     this.maxPages = numPages;
     this.pageIdToPages = new HashMap<PageId, Page>();
+    this.transactionsToDirtiedFlushedPages = new HashMap<TransactionId, Set<PageId>>();
     this.lockManager = LockManager.create();
     currentPages = new AtomicInteger(0);
   }
@@ -65,10 +69,11 @@ public class BufferPool {
    * @param tid the ID of the transaction requesting the page
    * @param pid the ID of the requested page
    * @param perm the requested permissions on the page
-   * @throws DbException 
-   * @throws TransactionAbortedException 
+   * @throws DbException
+   * @throws TransactionAbortedException
    */
-  public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws DbException, TransactionAbortedException {
+  public Page getPage(TransactionId tid, PageId pid, Permissions perm) throws DbException,
+      TransactionAbortedException {
     lockManager.acquireLock(tid, pid, perm);
     if (pageIdToPages.containsKey(pid)) {
       return pageIdToPages.get(pid);
@@ -120,9 +125,16 @@ public class BufferPool {
    */
   public void transactionComplete(TransactionId tid, boolean commit) throws IOException {
     if (commit) {
+      Set<PageId> dirtiedFlushedPages = transactionsToDirtiedFlushedPages.get(tid);
       for (PageId pageId : pageIdToPages.keySet()) {
-        if (tid.equals(pageIdToPages.get(pageId).isDirty())) {
+        Page page = pageIdToPages.get(pageId);
+        if (tid.equals(page.isDirty())) {
           flushPage(pageId);
+          // use current page contents as the before-image
+          // for the next transaction that modifies this page.
+          page.setBeforeImage();
+        } else if (dirtiedFlushedPages != null && dirtiedFlushedPages.contains(pageId)) {
+          page.setBeforeImage();
         }
       }
     } else {
@@ -134,10 +146,12 @@ public class BufferPool {
         }
       }
     }
+    transactionsToDirtiedFlushedPages.remove(tid);
     lockManager.releasePages(tid);
     // if commit, flush dirty pages associated with transaction
-    // if !commit, restore dirty pages associated with transaction to previous state
-    // release all locks (and other state?  don't think there is any)
+    // if !commit, restore dirty pages associated with transaction to previous
+    // state
+    // release all locks (and other state? don't think there is any)
   }
 
   /**
@@ -199,21 +213,39 @@ public class BufferPool {
    * manager to ensure that the buffer pool doesn't keep a rolled back page in
    * its cache.
    */
-  public synchronized void discardPage(PageId pid) {
-    // some code goes here
-    // only necessary for lab5
+  public synchronized void discardPage(PageId pageId) {
+    if (pageIdToPages.containsKey(pageId)) {
+      pageIdToPages.remove(pageId);
+      currentPages.decrementAndGet();
+    }
+  }
+  
+  private void addDirtiedFlushedPage(TransactionId dirtier, PageId pageId) {
+    if (transactionsToDirtiedFlushedPages.containsKey(dirtier)) {
+      transactionsToDirtiedFlushedPages.get(dirtier).add(pageId);
+    } else {
+      Set<PageId> dirtiedFlushedPages = new HashSet<PageId>();
+      dirtiedFlushedPages.add(pageId);
+      transactionsToDirtiedFlushedPages.put(dirtier, dirtiedFlushedPages);
+    }
   }
 
   /**
    * Flushes a certain page to disk
    * 
-   * @param pid an ID indicating the page to flush
+   * @param pageId an ID indicating the page to flush
    */
-  private synchronized void flushPage(PageId pid) throws IOException {
-    if (pageIdToPages.containsKey(pid)) {
-      Page page = pageIdToPages.get(pid);
-      if (page.isDirty() != null) {
-        Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+  private synchronized void flushPage(PageId pageId) throws IOException {
+    if (pageIdToPages.containsKey(pageId)) {
+      Page page = pageIdToPages.get(pageId);
+      // append an update record to the log, with
+      // a before-image and after-image.
+      TransactionId dirtier = page.isDirty();
+      if (dirtier != null) {
+        addDirtiedFlushedPage(dirtier, pageId);
+        Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
+        Database.getLogFile().force();
+        Database.getCatalog().getDatabaseFile(pageId.getTableId()).writePage(page);
         page.markDirty(false, null);
       }
     }
@@ -226,12 +258,11 @@ public class BufferPool {
     for (PageId pageId : pageIdToPages.keySet()) {
       Page page = pageIdToPages.get(pageId);
       if (page.isDirty() == tid) {
-        Database.getCatalog().getDatabaseFile(pageId.getTableId()).writePage(page);
-        page.markDirty(false, null);
+        flushPage(pageId);
       }
     }
   }
-  
+
   private boolean isDirty(PageId pageId) {
     return pageIdToPages.get(pageId).isDirty() != null;
   }

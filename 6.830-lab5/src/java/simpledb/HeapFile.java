@@ -117,28 +117,36 @@ public class HeapFile implements DbFile {
       TransactionAbortedException {
     HeapPage insertedPage = null;
     for (int pageNumber = 0; pageNumber < numberOfPages.get(); pageNumber++) {
-      PageId pageId = new HeapPageId(getId(), pageNumber);
-      HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId,
-          Permissions.READ_ONLY);
-      int numberOfEmptySlots = heapPage.getNumEmptySlots();
-      if (numberOfEmptySlots > 0) {
-        heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
-        heapPage.insertTuple(t);
-        insertedPage = heapPage;
+      insertedPage = attemptTupleInsert(tid, t, pageNumber);
+      if (insertedPage != null) {
         break;
       }
-      Database.getBufferPool().releasePage(tid, pageId);
     }
     if (insertedPage == null) {
-      HeapPage newHeapPage = new HeapPage(new HeapPageId(getId(), numberOfPages.getAndIncrement()),
+      int newPageNumber = numberOfPages.getAndIncrement();
+      HeapPage newHeapPage = new HeapPage(new HeapPageId(getId(), newPageNumber),
           HeapPage.createEmptyPageData());
-      newHeapPage.insertTuple(t);
       writePage(newHeapPage);
-      insertedPage = newHeapPage;
+      insertedPage = attemptTupleInsert(tid, t, newPageNumber);
     }
     ArrayList<Page> affectedPages = new ArrayList<Page>();
     affectedPages.add(insertedPage);
     return affectedPages;
+  }
+
+  private HeapPage attemptTupleInsert(TransactionId tid, Tuple t, int pageNumber)
+      throws DbException, TransactionAbortedException {
+    PageId pageId = new HeapPageId(getId(), pageNumber);
+    HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId,
+        Permissions.READ_ONLY);
+    int numberOfEmptySlots = heapPage.getNumEmptySlots();
+    if (numberOfEmptySlots > 0) {
+      heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
+      heapPage.insertTuple(t);
+      return heapPage;
+    }
+    Database.getBufferPool().releasePage(tid, pageId);
+    return null;
   }
 
   // see DbFile.java for javadocs
