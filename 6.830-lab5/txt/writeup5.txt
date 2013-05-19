@@ -1,0 +1,48 @@
+Lab 5 Writeup
+Jason Hoch
+5/19/2013
+
+I'm turning this assignment in on Sunday, with some combination of a late day/
+extension hopefully!
+
+Decribe any design decisions you made, including anything that was difficult
+or unexpected.
+
+(See below - I combined my answers)
+
+Discuss and justify any changes you made outside of LogFile.java.
+
+Within LogFile.java, I did not make any sweeping design decisions.  I chose not
+to alter the log format that we were given.  Some implications of the given
+format were that rollback(TransactionId) had to scan the entire log file for
+records with the given transactionId, as opposed to each record for a given
+transaction pointing to the next or previous.  Therefore the rollback method
+scans through transactions, writing the before image of any pages encountered
+for the first time with the correct associated transactionId.  The recover
+method scans from the last checkpoint, restoring everything to the proper
+state (tidToFirstLogRecord, currentOffset, and of course the contents of the
+actual pages).  Additionally, it keeps a HashSet of the transactions that
+were either active at the last checkpoint or begun afterwards but neither
+aborted nor committed.  These "active transactions" (a.k.a. "losers") are then
+reverted using the rollback(TransactionId) method.
+
+As I debugged my code, I found myself having to make some changes outside of
+LogFile.java.  In general, this was one of the more challenging labs - there
+was more potential for subtle mistakes.  Nothing was frustratingly difficult
+to solve, though, there was just a steady amount of careful debugging necessary
+for each system test case.
+
+Most of the changes were necessitated by making sure that certain invariants
+held.  First, it was not previously the case that a newly created page (by
+insertTuple()) would be flushed by BufferPool; insertTuple would write it
+directly.  As a result, the update would not get logged if the page was not
+touched a second time by the transaction.  I refactored the code so that all
+updates *must* go through BufferPool.  Second, an issue that arose involved
+pages that were flushed using flushAllPages() but not subsequently updated
+prior to a commit, namely that these pages would not have their before images
+set at commit.  I handled this by storing "flushed, dirtied pages" by
+transactionId; at commit, I would not re-flush these pages if they had not been
+dirtied a second time, but I would make sure to set their before image.
+
+With these bug-fixes/design decisions, my simple Database passes both the tests
+and the system tests.
